@@ -45,18 +45,8 @@ for m in "${MONITORS[@]}"; do
     args+=(--screen-root "$m" --bg "$id")
 done
 
-# Hybrid GPU (Intel iGPU + NVIDIA dGPU): linux-wallpaperengine otherwise picks
-# the NVIDIA EGL vendor and dies with "Failed to make egl current". Force the
-# Mesa EGL vendor and render on the Intel iGPU (which drives the internal eDP
-# panel); LIBVA_DRIVER_NAME keeps video decode on Intel too.
-GPU_ENV=(
-    __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
-    DRI_PRIME=pci-0000_00_02_0
-    LIBVA_DRIVER_NAME=iHD
-)
-
 # Detach so the hook returns immediately; log for debugging.
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/wallpaper/we.log"
 mkdir -p "$(dirname "$LOG")"
-setsid -f env "${GPU_ENV[@]}" linux-wallpaperengine "${args[@]}" >"$LOG" 2>&1 || \
+setsid -f linux-wallpaperengine "${args[@]}" >"$LOG" 2>&1 || \
     echo "failed to launch linux-wallpaperengine" >>"$LOG"
