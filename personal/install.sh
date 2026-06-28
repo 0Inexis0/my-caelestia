@@ -14,8 +14,10 @@
 
 set -euo pipefail
 
-SRC="$(cd "$(dirname "$0")/config" && pwd)"
+PERSONAL="$(cd "$(dirname "$0")" && pwd)"
+SRC="$PERSONAL/config"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}"
+BIN="$HOME/.local/bin"
 
 link() {
     local from="$1" to="$2"
@@ -43,6 +45,12 @@ for f in "$SRC"/hypr/monitors.d/*.conf; do
     [ -e "$f" ] || continue
     link "$f" "$DEST/hypr/monitors.d/$(basename "$f")"
 done
+
+echo "Installing the 'rice-update' command..."
+mkdir -p "$BIN"
+ln -sfn "$PERSONAL/update.sh" "$BIN/rice-update"
+chmod +x "$PERSONAL/update.sh" "$PERSONAL/bootstrap.sh"
+echo "  linked $BIN/rice-update  ->  update anytime by typing: rice-update"
 
 echo
 echo "Done. Restart the shell to apply:"
