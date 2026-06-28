@@ -15,7 +15,9 @@ set -uo pipefail
 mapfile -t MONITORS < <(hyprctl monitors -j 2>/dev/null \
     | python3 -c 'import json,sys; print("\n".join(m["name"] for m in json.load(sys.stdin)))' 2>/dev/null)
 [[ ${#MONITORS[@]} -gt 0 ]] || MONITORS=(eDP-1)   # fall back if detection fails
-EXTRA_OPTS=(--silent)     # video wallpapers play muted
+EXTRA_OPTS=(--silent --fps 60)   # muted; cap at 60fps
+SCALING=fill                     # cover the whole output (crop) so wallpapers
+                                 # with the wrong aspect don't show borders
 
 # The kernel truncates the process name to 15 chars ("linux-wallpaper"), so we
 # match that exact (truncated) comm rather than the full name or cmdline. Using
@@ -42,7 +44,8 @@ sleep 0.2
 
 args=("${EXTRA_OPTS[@]}")
 for m in "${MONITORS[@]}"; do
-    args+=(--screen-root "$m" --bg "$id")
+    # --scaling is per-output, so it must follow this output's --bg.
+    args+=(--screen-root "$m" --bg "$id" --scaling "$SCALING")
 done
 
 # Detach so the hook returns immediately; log for debugging.
