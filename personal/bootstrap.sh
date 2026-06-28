@@ -4,7 +4,7 @@
 # Installs Caelestia itself (if missing), the extras my setup uses, then layers
 # my fork + config on top.
 #
-#   bash <(curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh)
+#   curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 #
 # (Run it from a normal terminal/TTY as your user — NOT as root. It will ask for
 #  your sudo password once.)

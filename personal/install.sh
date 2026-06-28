@@ -37,14 +37,30 @@ link "$SRC/caelestia/cli.json"              "$DEST/caelestia/cli.json"
 link "$SRC/caelestia/we-sync.sh"            "$DEST/caelestia/we-sync.sh"
 link "$SRC/caelestia/wallpaper-posthook.sh" "$DEST/caelestia/wallpaper-posthook.sh"
 
-echo "Linking Hypr tweaks (German keyboard layout)..."
-link "$SRC/hypr/hyprland/input.lua" "$DEST/hypr/hyprland/input.lua"
+echo "Linking Hypr tweaks (keybinds, monitor restore/auto-disable, German keyboard)..."
+link "$SRC/hypr/hyprland/input.lua"    "$DEST/hypr/hyprland/input.lua"
+link "$SRC/hypr/hyprland/keybinds.lua" "$DEST/hypr/hyprland/keybinds.lua"
+link "$SRC/hypr/hyprland/execs.lua"    "$DEST/hypr/hyprland/execs.lua"
 
-echo "Linking persisted monitor configs (machine-specific — skip/edit on other hardware)..."
-for f in "$SRC"/hypr/monitors.d/*.conf; do
-    [ -e "$f" ] || continue
-    link "$f" "$DEST/hypr/monitors.d/$(basename "$f")"
-done
+echo "Linking persisted monitor configs (only for monitors on THIS machine)..."
+# These .conf files are machine-specific (resolution/refresh/scale for a given
+# output). Linking another machine's config can force an unsupported mode and
+# black out a display, so only link a config whose output is actually present.
+# On a fresh TTY install Hyprland isn't running yet — skip them entirely; the
+# Display settings page recreates them per-machine on first use.
+if command -v hyprctl >/dev/null 2>&1 && present="$(hyprctl monitors all 2>/dev/null | grep -oP '^Monitor \K[^ ]+')" && [ -n "$present" ]; then
+    for f in "$SRC"/hypr/monitors.d/*.conf; do
+        [ -e "$f" ] || continue
+        name="$(basename "$f" .conf)"
+        if printf '%s\n' "$present" | grep -qxF "$name"; then
+            link "$f" "$DEST/hypr/monitors.d/$name.conf"
+        else
+            echo "  skipped $name.conf (no monitor named '$name' on this machine)"
+        fi
+    done
+else
+    echo "  (Hyprland not running yet — skipping; the Display settings page will create these per-machine)"
+fi
 
 echo "Installing the 'rice-update' command..."
 mkdir -p "$BIN"
