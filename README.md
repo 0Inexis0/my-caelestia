@@ -37,29 +37,28 @@ upstream updates without losing my changes.
 `/etc/xdg/quickshell/caelestia`. So this repo, cloned to that path, **is** the running shell —
 which means the `caelestia-shell` package can update freely without ever overwriting my changes.
 
-## Install on a new machine
+## Install on a new machine — one command
+
+First install Caelestia itself (the [main dots](https://github.com/caelestia-dots/caelestia) +
+the `caelestia-shell` package). Then paste this:
 
 ```sh
-# 1. Install caelestia normally first (dotfiles + shell package):
-#    https://github.com/caelestia-dots/caelestia
-# 2. Run the shell from this fork:
-git clone https://github.com/0Inexis0/my-caelestia.git ~/.config/quickshell/caelestia
-# 3. Link my user-space config into place:
-~/.config/quickshell/caelestia/personal/install.sh
-# 4. Restart the shell:
-qs -c caelestia kill; caelestia shell -d
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh | bash
 ```
 
-## Update from upstream (keeping my changes)
+That clones this fork, links my config into place, installs the `rice-update` command,
+and starts the shell. Done.
+
+## Update — one command
 
 ```sh
-cd ~/.config/quickshell/caelestia
-git fetch upstream
-git merge upstream/main          # or a release tag, e.g. v2.1.0
-qs -c caelestia kill; caelestia shell -d
+rice-update
 ```
 
-My commits stay on top; merges are clean because my new files don't overlap upstream's.
+It auto-saves my changes, syncs the shell to the Caelestia version installed on the
+machine, restarts, and — if anything ever goes wrong — rolls itself back to the last
+working version. To pull a *newer* Caelestia, run a normal system update first (`yay`),
+then `rice-update`.
 
 ## Credits
 
