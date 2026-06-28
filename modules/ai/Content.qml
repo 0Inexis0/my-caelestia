@@ -551,12 +551,10 @@ Item {
 
                 StyledSlider {
                     width: parent.width
-                    from: 0
-                    to: root.ctxPresets.length - 1
-                    stepSize: 1
-                    value: Math.max(0, root.ctxPresets.indexOf(Ollama.numCtx))
-                    onMoved: {
-                        Ollama.numCtx = root.ctxPresets[Math.round(value)];
+                    value: Math.max(0, root.ctxPresets.indexOf(Ollama.numCtx)) / (root.ctxPresets.length - 1)
+                    onInteraction: v => {
+                        const idx = Math.round(v * (root.ctxPresets.length - 1));
+                        Ollama.numCtx = root.ctxPresets[idx];
                         Ollama.persist();
                     }
                 }
@@ -594,12 +592,9 @@ Item {
 
                 StyledSlider {
                     width: parent.width
-                    from: 0
-                    to: 2
-                    stepSize: 0.05
-                    value: Ollama.temperature
-                    onMoved: {
-                        Ollama.temperature = value;
+                    value: Ollama.temperature / 2
+                    onInteraction: v => {
+                        Ollama.temperature = v * 2;
                         Ollama.persist();
                     }
                 }
