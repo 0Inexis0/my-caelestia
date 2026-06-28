@@ -6,7 +6,10 @@ import QtQuick.Layouts
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.components.filedialog
+import qs.components.images
 import qs.services
+import qs.utils
 
 Item {
     id: root
@@ -15,7 +18,8 @@ Item {
     required property real maxHeight
 
     readonly property int padding: Tokens.padding.large
-    property bool modelPickerOpen: false
+    // "" | "model" | "settings" | "history"
+    property string overlay: ""
 
     implicitWidth: 660
     implicitHeight: Math.min(root.maxHeight, header.implicitHeight + listWrapper.implicitHeight + inputWrapper.implicitHeight + padding * 2 + Tokens.spacing.small * 2)
@@ -25,13 +29,22 @@ Item {
     Connections {
         function onAiChanged(): void {
             if (!root.visibilities.ai)
-                root.modelPickerOpen = false;
+                root.overlay = "";
         }
 
         target: root.visibilities
     }
 
-    // Header: title, model picker, new chat, close
+    FileDialog {
+        id: imagePicker
+
+        title: qsTr("Attach an image")
+        filterLabel: qsTr("Image files")
+        filters: Images.validImageExtensions
+        onAccepted: path => Ollama.encodeAndAttach(path)
+    }
+
+    // Header
     RowLayout {
         id: header
 
@@ -62,25 +75,30 @@ Item {
             id: modelChip
 
             Layout.preferredHeight: modelRow.implicitHeight + Tokens.padding.small * 2
+            Layout.maximumWidth: 200
             implicitWidth: modelRow.implicitWidth + Tokens.padding.medium * 2
 
             radius: Tokens.rounding.full
-            color: modelMouse.containsMouse || root.modelPickerOpen ? Colours.palette.m3surfaceContainerHighest : Colours.palette.m3surfaceContainerHigh
+            color: modelMouse.containsMouse || root.overlay === "model" ? Colours.palette.m3surfaceContainerHighest : Colours.palette.m3surfaceContainerHigh
 
             RowLayout {
                 id: modelRow
 
-                anchors.centerIn: parent
+                anchors.fill: parent
+                anchors.leftMargin: Tokens.padding.medium
+                anchors.rightMargin: Tokens.padding.small
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
+                    Layout.fillWidth: true
                     text: Ollama.currentModel || qsTr("No models")
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
+                    elide: Text.ElideRight
                 }
 
                 MaterialIcon {
-                    text: root.modelPickerOpen ? "expand_less" : "expand_more"
+                    text: root.overlay === "model" ? "expand_less" : "expand_more"
                     color: Colours.palette.m3onSurfaceVariant
                     fontStyle: Tokens.font.icon.small
                 }
@@ -92,14 +110,29 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.modelPickerOpen = !root.modelPickerOpen
+                onClicked: root.overlay = root.overlay === "model" ? "" : "model"
             }
+        }
+
+        IconButton {
+            icon: "history"
+            type: IconButton.Text
+            onClicked: root.overlay = root.overlay === "history" ? "" : "history"
+        }
+
+        IconButton {
+            icon: "tune"
+            type: IconButton.Text
+            onClicked: root.overlay = root.overlay === "settings" ? "" : "settings"
         }
 
         IconButton {
             icon: "add_comment"
             type: IconButton.Tonal
-            onClicked: Ollama.clear()
+            onClicked: {
+                Ollama.newChat();
+                root.overlay = "";
+            }
         }
 
         IconButton {
@@ -149,6 +182,7 @@ Item {
                 width: ListView.view.width
                 role: model.role
                 content: model.content
+                images: model.images ?? []
             }
 
             footer: Column {
@@ -156,7 +190,6 @@ Item {
                 spacing: Tokens.spacing.small
                 topPadding: list.count > 0 ? Tokens.spacing.small : 0
 
-                // Live reasoning trace (dim) while the model thinks
                 StyledRect {
                     width: parent.width
                     visible: Ollama.responding && Ollama.streamContent.length === 0
@@ -200,7 +233,6 @@ Item {
                     }
                 }
 
-                // Streaming answer
                 MessageItem {
                     width: parent.width
                     visible: Ollama.streamContent.length > 0
@@ -237,8 +269,8 @@ Item {
         }
     }
 
-    // Input row
-    StyledRect {
+    // Input area (pending attachments + text row)
+    Column {
         id: inputWrapper
 
         anchors.bottom: parent.bottom
@@ -246,74 +278,152 @@ Item {
         anchors.right: parent.right
         anchors.margins: root.padding
 
-        radius: Tokens.rounding.full
-        color: Colours.layer(Colours.palette.m3surfaceContainer, 2)
+        spacing: Tokens.spacing.small
 
-        implicitHeight: Math.max(input.implicitHeight, sendBtn.implicitHeight) + Tokens.padding.small * 2
+        Row {
+            id: attachRow
 
-        StyledTextField {
-            id: input
+            visible: Ollama.pendingImages.length > 0
+            spacing: Tokens.spacing.small
 
-            anchors.left: parent.left
-            anchors.right: sendBtn.left
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: root.padding
-            anchors.rightMargin: Tokens.spacing.small
+            Repeater {
+                model: Ollama.pendingImages
 
-            topPadding: Tokens.padding.medium
-            bottomPadding: Tokens.padding.medium
+                StyledClippingRect {
+                    id: thumb
 
-            placeholderText: qsTr("Message %1…").arg(Ollama.currentModel || "Ollama")
-            enabled: Ollama.available
+                    required property string modelData
+                    required property int index
 
-            onAccepted: {
-                if (!Ollama.responding && text.trim()) {
-                    Ollama.send(text);
-                    text = "";
+                    implicitWidth: 48
+                    implicitHeight: 48
+                    radius: Tokens.rounding.small
+
+                    Image {
+                        anchors.fill: parent
+                        source: "data:image/png;base64," + thumb.modelData
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                    }
+
+                    StyledRect {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        implicitWidth: 18
+                        implicitHeight: 18
+                        radius: Tokens.rounding.full
+                        color: Colours.palette.m3surfaceContainerHighest
+
+                        MaterialIcon {
+                            anchors.centerIn: parent
+                            text: "close"
+                            fontStyle: Tokens.font.icon.small
+                            color: Colours.palette.m3onSurface
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Ollama.removePendingImage(thumb.index)
+                        }
+                    }
                 }
-            }
-
-            Keys.onEscapePressed: root.visibilities.ai = false
-
-            Component.onCompleted: forceActiveFocus()
-
-            Connections {
-                function onAiChanged(): void {
-                    if (root.visibilities.ai)
-                        input.forceActiveFocus();
-                }
-
-                target: root.visibilities
             }
         }
 
-        IconButton {
-            id: sendBtn
+        StyledRect {
+            id: inputBar
 
+            anchors.left: parent.left
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.rightMargin: Tokens.padding.small
 
-            icon: Ollama.responding ? "stop" : "arrow_upward"
-            type: IconButton.Filled
-            disabled: !Ollama.responding && (!input.text.trim() || !Ollama.available)
+            radius: Tokens.rounding.full
+            color: Colours.layer(Colours.palette.m3surfaceContainer, 2)
 
-            onClicked: {
-                if (Ollama.responding) {
-                    Ollama.stop();
-                } else if (input.text.trim()) {
-                    Ollama.send(input.text);
-                    input.text = "";
+            implicitHeight: Math.max(input.implicitHeight, sendBtn.implicitHeight) + Tokens.padding.small * 2
+
+            IconButton {
+                id: attachBtn
+
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.small
+
+                icon: "attach_file"
+                type: IconButton.Text
+                enabled: Ollama.available
+                onClicked: imagePicker.open()
+            }
+
+            StyledTextField {
+                id: input
+
+                anchors.left: attachBtn.right
+                anchors.right: sendBtn.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.spacing.small
+                anchors.rightMargin: Tokens.spacing.small
+
+                topPadding: Tokens.padding.medium
+                bottomPadding: Tokens.padding.medium
+
+                placeholderText: qsTr("Message %1…").arg(Ollama.currentModel || "Ollama")
+                enabled: Ollama.available
+
+                onAccepted: {
+                    if (!Ollama.responding && (text.trim() || Ollama.pendingImages.length)) {
+                        Ollama.send(text);
+                        text = "";
+                    }
+                }
+
+                Keys.onEscapePressed: {
+                    if (root.overlay)
+                        root.overlay = "";
+                    else
+                        root.visibilities.ai = false;
+                }
+
+                Component.onCompleted: forceActiveFocus()
+
+                Connections {
+                    function onAiChanged(): void {
+                        if (root.visibilities.ai)
+                            input.forceActiveFocus();
+                    }
+
+                    target: root.visibilities
+                }
+            }
+
+            IconButton {
+                id: sendBtn
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.rightMargin: Tokens.padding.small
+
+                icon: Ollama.responding ? "stop" : "arrow_upward"
+                type: IconButton.Filled
+                disabled: !Ollama.responding && (!(input.text.trim() || Ollama.pendingImages.length) || !Ollama.available)
+
+                onClicked: {
+                    if (Ollama.responding) {
+                        Ollama.stop();
+                    } else if (input.text.trim() || Ollama.pendingImages.length) {
+                        Ollama.send(input.text);
+                        input.text = "";
+                    }
                 }
             }
         }
     }
 
-    // Inline model picker overlay (kept inside the layershell window, no popup surface)
-    StyledRect {
-        id: modelPicker
+    // ---- Overlays ----
 
-        visible: root.modelPickerOpen && Ollama.models.length > 0
+    // Model picker
+    StyledRect {
+        visible: root.overlay === "model" && Ollama.models.length > 0
         z: 100
 
         anchors.top: header.bottom
@@ -321,66 +431,267 @@ Item {
         anchors.rightMargin: root.padding
         anchors.topMargin: Tokens.spacing.small
 
-        implicitWidth: Math.max(180, pickerCol.implicitWidth + Tokens.padding.small * 2)
-        implicitHeight: pickerCol.implicitHeight + Tokens.padding.small * 2
+        implicitWidth: 320
+        implicitHeight: modelList.height + Tokens.padding.small * 2
+
+        radius: Tokens.rounding.medium
+        color: Colours.palette.m3surfaceContainerHighest
+
+        ListView {
+            id: modelList
+
+            x: Tokens.padding.small
+            y: Tokens.padding.small
+            width: parent.width - Tokens.padding.small * 2
+            height: Math.min(280, contentHeight)
+            clip: true
+            model: Ollama.models
+
+            delegate: StyledRect {
+                id: pickerItem
+
+                required property string modelData
+                readonly property bool current: modelData === Ollama.currentModel
+
+                width: modelList.width
+                implicitHeight: pickerLabel.implicitHeight + Tokens.padding.small * 2
+                radius: Tokens.rounding.small
+                color: pickerArea.containsMouse ? Colours.palette.m3surfaceContainerHigh : "transparent"
+
+                StyledText {
+                    id: pickerLabel
+
+                    anchors.left: parent.left
+                    anchors.right: checkIcon.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.small
+                    anchors.rightMargin: Tokens.spacing.small
+
+                    text: pickerItem.modelData
+                    font: Tokens.font.label.medium
+                    color: pickerItem.current ? Colours.palette.m3primary : Colours.palette.m3onSurface
+                    elide: Text.ElideMiddle
+                }
+
+                MaterialIcon {
+                    id: checkIcon
+
+                    visible: pickerItem.current
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.rightMargin: Tokens.padding.small
+                    text: "check"
+                    color: Colours.palette.m3primary
+                    fontStyle: Tokens.font.icon.small
+                }
+
+                MouseArea {
+                    id: pickerArea
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Ollama.setModel(pickerItem.modelData);
+                        root.overlay = "";
+                    }
+                }
+            }
+
+            StyledScrollBar.vertical: StyledScrollBar {
+                flickable: modelList
+            }
+        }
+    }
+
+    // Settings
+    StyledRect {
+        visible: root.overlay === "settings"
+        z: 100
+
+        anchors.top: header.bottom
+        anchors.right: parent.right
+        anchors.rightMargin: root.padding
+        anchors.topMargin: Tokens.spacing.small
+
+        implicitWidth: 300
+        implicitHeight: settingsCol.implicitHeight + Tokens.padding.large * 2
 
         radius: Tokens.rounding.medium
         color: Colours.palette.m3surfaceContainerHighest
 
         Column {
-            id: pickerCol
+            id: settingsCol
 
-            anchors.centerIn: parent
-            width: parent.width - Tokens.padding.small * 2
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Tokens.padding.large
+            spacing: Tokens.spacing.medium
 
-            Repeater {
-                model: Ollama.models
+            StyledText {
+                text: qsTr("Settings")
+                font: Tokens.font.title.small
+                color: Colours.palette.m3onSurface
+            }
+
+            // Context length
+            Column {
+                width: parent.width
+                spacing: Tokens.spacing.extraSmall
+
+                StyledText {
+                    text: qsTr("Context length (num_ctx)")
+                    font: Tokens.font.label.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
 
                 StyledRect {
-                    id: pickerItem
-
-                    required property string modelData
-                    readonly property bool current: modelData === Ollama.currentModel
-
                     width: parent.width
-                    implicitHeight: pickerLabel.implicitHeight + Tokens.padding.small * 2
+                    implicitHeight: ctxField.implicitHeight + Tokens.padding.small * 2
                     radius: Tokens.rounding.small
-                    color: pickerArea.containsMouse ? Colours.palette.m3surfaceContainerHigh : "transparent"
+                    color: Colours.palette.m3surfaceContainer
 
-                    StyledText {
-                        id: pickerLabel
-
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: Tokens.padding.small
-
-                        text: pickerItem.modelData
-                        font: Tokens.font.label.medium
-                        color: pickerItem.current ? Colours.palette.m3primary : Colours.palette.m3onSurface
-                    }
-
-                    MaterialIcon {
-                        visible: pickerItem.current
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.rightMargin: Tokens.padding.small
-                        text: "check"
-                        color: Colours.palette.m3primary
-                        fontStyle: Tokens.font.icon.small
-                    }
-
-                    MouseArea {
-                        id: pickerArea
+                    StyledTextField {
+                        id: ctxField
 
                         anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            Ollama.setModel(pickerItem.modelData);
-                            root.modelPickerOpen = false;
+                        anchors.leftMargin: Tokens.padding.small
+                        anchors.rightMargin: Tokens.padding.small
+                        verticalAlignment: TextInput.AlignVCenter
+
+                        text: Ollama.numCtx
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        validator: IntValidator {
+                            bottom: 256
+                            top: 131072
+                        }
+                        onEditingFinished: {
+                            const v = parseInt(text);
+                            if (!isNaN(v)) {
+                                Ollama.numCtx = v;
+                                Ollama.persist();
+                            }
                         }
                     }
                 }
+            }
+
+            // Temperature
+            Column {
+                width: parent.width
+                spacing: Tokens.spacing.extraSmall
+
+                StyledText {
+                    text: qsTr("Temperature: %1").arg(Ollama.temperature.toFixed(2))
+                    font: Tokens.font.label.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledSlider {
+                    width: parent.width
+                    from: 0
+                    to: 2
+                    stepSize: 0.05
+                    value: Ollama.temperature
+                    onMoved: {
+                        Ollama.temperature = value;
+                        Ollama.persist();
+                    }
+                }
+            }
+        }
+    }
+
+    // Chat history
+    StyledRect {
+        visible: root.overlay === "history"
+        z: 100
+
+        anchors.top: header.bottom
+        anchors.right: parent.right
+        anchors.rightMargin: root.padding
+        anchors.topMargin: Tokens.spacing.small
+
+        implicitWidth: 360
+        implicitHeight: Math.max(64, historyList.height + Tokens.padding.small * 2)
+
+        radius: Tokens.rounding.medium
+        color: Colours.palette.m3surfaceContainerHighest
+
+        StyledText {
+            anchors.centerIn: parent
+            visible: Ollama.chats.length === 0
+            text: qsTr("No chats yet")
+            color: Colours.palette.m3outline
+            font: Tokens.font.body.small
+        }
+
+        ListView {
+            id: historyList
+
+            x: Tokens.padding.small
+            y: Tokens.padding.small
+            width: parent.width - Tokens.padding.small * 2
+            height: Math.min(340, contentHeight)
+            clip: true
+            spacing: Tokens.spacing.extraSmall
+            model: Ollama.chats
+
+            delegate: StyledRect {
+                id: histItem
+
+                required property var modelData
+                readonly property bool current: modelData.id === Ollama.currentChatId
+
+                width: historyList.width
+                implicitHeight: Math.max(histTitle.implicitHeight, histDel.implicitHeight) + Tokens.padding.small * 2
+                radius: Tokens.rounding.small
+                color: histItem.current ? Colours.palette.m3secondaryContainer : histArea.containsMouse ? Colours.palette.m3surfaceContainerHigh : "transparent"
+
+                StyledText {
+                    id: histTitle
+
+                    anchors.left: parent.left
+                    anchors.right: histDel.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.small
+                    anchors.rightMargin: Tokens.spacing.small
+
+                    text: histItem.modelData.title || qsTr("New chat")
+                    font: Tokens.font.label.medium
+                    color: histItem.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                    elide: Text.ElideRight
+                }
+
+                IconButton {
+                    id: histDel
+
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.rightMargin: Tokens.padding.extraSmall
+
+                    icon: "delete"
+                    type: IconButton.Text
+                    onClicked: Ollama.deleteChat(histItem.modelData.id)
+                }
+
+                MouseArea {
+                    id: histArea
+
+                    anchors.fill: parent
+                    anchors.rightMargin: histDel.width
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Ollama.loadChat(histItem.modelData.id);
+                        root.overlay = "";
+                    }
+                }
+            }
+
+            StyledScrollBar.vertical: StyledScrollBar {
+                flickable: historyList
             }
         }
     }

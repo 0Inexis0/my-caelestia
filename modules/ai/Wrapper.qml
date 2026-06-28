@@ -13,7 +13,7 @@ Item {
 
     readonly property bool shouldBeActive: visibilities.ai
 
-    readonly property real maxHeight: screen.height - Config.border.thickness * 2 - Tokens.padding.extraLarge * 2
+    readonly property real maxHeight: Math.min(740, screen.height - Config.border.thickness * 2 - Tokens.padding.extraLarge * 2)
 
     property real offsetScale: shouldBeActive ? 0 : 1
 
