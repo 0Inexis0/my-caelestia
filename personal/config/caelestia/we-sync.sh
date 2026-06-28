@@ -45,13 +45,18 @@ while IFS= read -r -d '' proj; do
     [[ -n "${seen_ids[$id]:-}" ]] && continue   # prefer first hit (downloads before content)
     seen_ids[$id]=1
 
-    read -r title preview < <(python3 - "$proj" <<'PY'
+    # preview and title on separate lines: titles often contain spaces, so a
+    # single-line "title preview" would make `read title preview` mis-split and
+    # drop the real preview filename. Preview first so it's resolved correctly
+    # even if the title is unusual.
+    { read -r preview; read -r title; } < <(python3 - "$proj" <<'PY'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
 except Exception:
     sys.exit()
-print(d.get("title") or "Untitled", d.get("preview") or "preview.jpg")
+print(d.get("preview") or "preview.jpg")
+print(d.get("title") or "Untitled")
 PY
 )
     preview_path="$src_dir/$preview"
