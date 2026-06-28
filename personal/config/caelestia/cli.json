@@ -1,0 +1,5 @@
+{
+    "wallpaper": {
+        "postHook": "~/.config/caelestia/wallpaper-posthook.sh"
+    }
+}

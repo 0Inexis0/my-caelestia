@@ -1,0 +1,37 @@
+{
+    "appearance": {
+        "transparency": {
+            "enabled": true
+        }
+    },
+    "bar": {
+        "activeWindow": {
+            "compact": true,
+            "inverted": false
+        },
+        "clock": {
+            "background": true,
+            "showDate": true
+        },
+        "persistent": true,
+        "scrollActions": {
+            "workspaces": true
+        },
+        "tray": {
+            "background": false,
+            "recolour": false
+        },
+        "workspaces": {
+            "activeTrail": false,
+            "occupiedBg": false,
+            "showWindows": true,
+            "shown": 3
+        }
+    },
+    "launcher": {
+        "actionPrefix": "."
+    },
+    "paths": {
+        "wallpaperDir": "/home/tyler/Bilder/Wallpapers"
+    }
+}
