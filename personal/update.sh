@@ -1,21 +1,26 @@
 #!/usr/bin/env bash
 #
-# Update my-caelestia, keeping ALL my changes — and NEVER leave the desktop dead.
+# Update everything in one shot, keeping ALL my changes — and NEVER leave the
+# desktop dead.
 #
-# Safety layers:
+# What it does:
+#   0. updates your system packages (yay -Syu: Caelestia, quickshell, etc.)
 #   1. auto-saves your edits to git first (never lost)
-#   2. rebases your changes onto the Caelestia version installed on this machine
+#   2. rebases your changes onto the now-installed Caelestia version
 #   3. test-loads the result in a throwaway instance BEFORE switching to it
 #   4. if anything fails, rolls back; and if even the rollback won't load,
 #      falls back to the system package shell so your desktop still works
 #
-# Run:  rice-update
-# Newer Caelestia? Do a system update first (`yay`), then run this.
+# Run:  rice-update                 (does the system update too)
+#       rice-update --skip-system   (just sync the shell, no package update)
 #
 set -uo pipefail
 
 REPO="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/caelestia"
 RUNDIR="/run/user/$(id -u)/quickshell/by-id"
+
+DO_SYSTEM=1
+for a in "$@"; do case "$a" in -s|--skip-system) DO_SYSTEM=0 ;; esac; done
 
 c_info() { printf '\n\033[1;36m%s\033[0m\n' "$*"; }
 c_ok()   { printf '\033[1;32m%s\033[0m\n' "$*"; }
@@ -23,6 +28,18 @@ c_warn() { printf '\033[1;33m%s\033[0m\n' "$*"; }
 c_err()  { printf '\033[1;31m%s\033[0m\n' "$*"; }
 
 cd "$REPO" 2>/dev/null || { c_err "❌ Can't find your shell at $REPO"; exit 1; }
+
+# Full system update via the AUR helper (keeps Caelestia + quickshell in step)
+system_update() {
+    local helper; helper="$(command -v yay || command -v paru || true)"
+    if [ -z "$helper" ]; then
+        c_warn "   (no yay/paru found — skipping the package update)"
+        return
+    fi
+    c_info "📦 Updating system packages (Caelestia, quickshell, everything)..."
+    c_warn "   This will ask for your password and confirmations — that's normal."
+    "$helper" -Syu || c_warn "   (system update didn't finish cleanly — continuing with the shell sync)"
+}
 
 restart_shell() {
     qs -c caelestia kill >/dev/null 2>&1
@@ -69,6 +86,9 @@ else
     echo "   (nothing new to save)"
 fi
 SAFE_POINT="$(git rev-parse HEAD)"
+
+# 1b. Update system packages first (so the shell can sync to the new version) --
+[ "$DO_SYSTEM" = 1 ] && system_update
 
 # 2. Target = the Caelestia version installed on this machine ------------------
 c_info "⬇️  Checking for updates..."

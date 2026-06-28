@@ -56,10 +56,12 @@ command — then starts the shell. Done.
 rice-update
 ```
 
-It auto-saves my changes, syncs the shell to the Caelestia version installed on the
-machine, restarts, and — if anything ever goes wrong — rolls itself back to the last
-working version. To pull a *newer* Caelestia, run a normal system update first (`yay`),
-then `rice-update`.
+That's the whole update. It runs a full system update (`yay -Syu`, so Caelestia and
+quickshell move together), auto-saves my changes, rebases them onto the new version,
+**test-loads it before switching**, restarts — and if anything ever goes wrong it rolls
+back, falling back to the plain system shell so the desktop is never left dead.
+
+Just want to sync the shell without a system update? `rice-update --skip-system`.
 
 ## Credits
 
