@@ -39,15 +39,16 @@ which means the `caelestia-shell` package can update freely without ever overwri
 
 ## Install on a new machine — one command
 
-First install Caelestia itself (the [main dots](https://github.com/caelestia-dots/caelestia) +
-the `caelestia-shell` package). Then paste this:
+On a fresh Arch/CachyOS machine, paste this in a normal terminal (it asks for your sudo
+password once):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 ```
 
-That clones this fork, links my config into place, installs the `rice-update` command,
-and starts the shell. Done.
+It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
+login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
+command — then starts the shell. Done.
 
 ## Update — one command
 
