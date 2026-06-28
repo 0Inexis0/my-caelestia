@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.components
+import qs.modules.ai as Ai
 import qs.modules.bar as Bar
 import qs.modules.dashboard as Dashboard
 import qs.modules.launcher as Launcher
@@ -33,6 +34,7 @@ Item {
     readonly property alias utilities: utilities
     readonly property alias toasts: toasts
     readonly property alias sidebar: sidebar
+    readonly property alias ai: ai
 
     anchors.fill: parent
     anchors.margins: borderThickness
@@ -114,6 +116,16 @@ Item {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
+    }
+
+    Ai.Wrapper {
+        id: ai
+
+        screen: root.screen
+        visibilities: root.visibilities
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
     }
 
     BarPopouts.ClipWrapper {
