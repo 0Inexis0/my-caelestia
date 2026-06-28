@@ -16,8 +16,8 @@ mapfile -t MONITORS < <(hyprctl monitors -j 2>/dev/null \
     | python3 -c 'import json,sys; print("\n".join(m["name"] for m in json.load(sys.stdin)))' 2>/dev/null)
 [[ ${#MONITORS[@]} -gt 0 ]] || MONITORS=(eDP-1)   # fall back if detection fails
 EXTRA_OPTS=(--silent --fps 60)   # muted; cap at 60fps
-SCALING=fill                     # cover the whole output (crop) so wallpapers
-                                 # with the wrong aspect don't show borders
+SCALING=stretch                  # stretch to the whole output: no borders and
+                                 # no cropping (distorts mismatched aspects)
 
 # The kernel truncates the process name to 15 chars ("linux-wallpaper"), so we
 # match that exact (truncated) comm rather than the full name or cmdline. Using
