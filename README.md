@@ -24,12 +24,22 @@ upstream updates without losing my changes.
   `modules/nexus/pages/display/MonitorSection.qml`) — a brand-new page in the Nexus
   settings app to pick resolution, refresh rate, scale and position per monitor, choose
   which output is on, and enable/disable displays. Reads `hyprctl monitors`, applies live
-  via `hyprctl`, and persists to `~/.config/hypr/monitors.d/`.
+  via `hyprctl`, and persists to `~/.config/hypr/monitors.d/` (restored on login by
+  `execs.lua` below).
 
 ### User-space config — see [`personal/`](personal/)
 
 - **🎮 Wallpaper Engine** support in the wallpaper picker (`we-sync.sh` + `wallpaper-posthook.sh`).
-- **⌨️ German keyboard layout** and launcher tweaks (`.` action prefix), bar/appearance tweaks.
+- **⌨️ Hyprland tweaks** — German keyboard layout (`input.lua`), my custom keybinds
+  (`keybinds.lua`, incl. `Super+A` for the AI page), and monitor restore + automatic
+  internal-display disable when an external is plugged in (`execs.lua`, the companion to
+  the Display page above).
+- **🎨 Shell config** — `shell.json` / `cli.json`: launcher `.` action prefix, bar and
+  appearance tweaks.
+
+`personal/install.sh` symlinks all of this into `~/.config` so the repo stays the single
+source of truth. The machine-specific monitor configs only link for outputs actually
+present on the current machine, so the same repo installs cleanly on any hardware.
 
 ## How this fork works
 
