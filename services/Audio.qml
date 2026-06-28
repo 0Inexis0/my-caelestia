@@ -30,10 +30,15 @@ Singleton {
     readonly property alias cava: cava
     readonly property alias beatTracker: beatTracker
 
+    // NOTE: writing node.audio.volume/muted does not propagate for route-owned
+    // sinks (e.g. Bluetooth) in this Quickshell build — the gain lives on the
+    // device route, which the node-level setter never touches, so the slider
+    // appears to do nothing. We drive volume/mute via wpctl (which writes the
+    // route) instead. This works identically for ALSA and bluez nodes.
     function setVolume(newVolume: real): void {
         if (sink?.ready && sink?.audio) {
-            sink.audio.muted = false;
-            sink.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            const v = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            Quickshell.execDetached(["sh", "-c", `wpctl set-mute ${sink.id} 0; wpctl set-volume ${sink.id} ${v}`]);
         }
     }
 
@@ -47,8 +52,8 @@ Singleton {
 
     function setSourceVolume(newVolume: real): void {
         if (source?.ready && source?.audio) {
-            source.audio.muted = false;
-            source.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            const v = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            Quickshell.execDetached(["sh", "-c", `wpctl set-mute ${source.id} 0; wpctl set-volume ${source.id} ${v}`]);
         }
     }
 
@@ -79,14 +84,14 @@ Singleton {
 
     function setStreamVolume(stream: PwNode, newVolume: real): void {
         if (stream?.ready && stream?.audio) {
-            stream.audio.muted = false;
-            stream.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            const v = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+            Quickshell.execDetached(["sh", "-c", `wpctl set-mute ${stream.id} 0; wpctl set-volume ${stream.id} ${v}`]);
         }
     }
 
     function setStreamMuted(stream: PwNode, muted: bool): void {
         if (stream?.ready && stream?.audio) {
-            stream.audio.muted = muted;
+            Quickshell.execDetached(["wpctl", "set-mute", `${stream.id}`, muted ? "1" : "0"]);
         }
     }
 
