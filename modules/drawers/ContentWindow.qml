@@ -192,6 +192,13 @@ StyledWindow {
         }
 
         PanelBg {
+            id: aiBg
+
+            panel: panels.ai
+            deformAmount: 0.1
+        }
+
+        PanelBg {
             id: sessionBg
 
             panel: panels.sessionWrapper
@@ -278,6 +285,9 @@ StyledWindow {
             }
             launcher.transform: Matrix4x4 {
                 matrix: launcherBg.deformMatrix
+            }
+            ai.transform: Matrix4x4 {
+                matrix: aiBg.deformMatrix
             }
             session.transform: Matrix4x4 {
                 matrix: sessionBg.deformMatrix

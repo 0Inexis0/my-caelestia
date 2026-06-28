@@ -29,7 +29,7 @@ Item {
         implicitWidth: Math.min(root.width * 0.85, label.implicitWidth + padding * 2)
         implicitHeight: label.implicitHeight + padding * 2
 
-        readonly property int padding: Tokens.padding.normal
+        readonly property int padding: Tokens.padding.medium
 
         StyledText {
             id: label
@@ -38,7 +38,7 @@ Item {
             anchors.top: parent.top
             anchors.margins: bubble.padding
 
-            width: Math.min(root.width * 0.85, implicitWidth) - bubble.padding * 2
+            width: Math.min(implicitWidth, root.width * 0.85 - bubble.padding * 2)
 
             text: root.content + (root.streaming ? " ▋" : "")
             textFormat: root.isUser ? Text.PlainText : Text.MarkdownText

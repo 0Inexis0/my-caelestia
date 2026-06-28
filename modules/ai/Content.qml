@@ -62,7 +62,7 @@ Item {
             id: modelChip
 
             Layout.preferredHeight: modelRow.implicitHeight + Tokens.padding.small * 2
-            implicitWidth: modelRow.implicitWidth + Tokens.padding.normal * 2
+            implicitWidth: modelRow.implicitWidth + Tokens.padding.medium * 2
 
             radius: Tokens.rounding.full
             color: modelMouse.containsMouse || root.modelPickerOpen ? Colours.palette.m3surfaceContainerHighest : Colours.palette.m3surfaceContainerHigh
@@ -137,7 +137,7 @@ Item {
             id: list
 
             anchors.fill: parent
-            anchors.margins: Tokens.padding.normal
+            anchors.margins: Tokens.padding.medium
             clip: true
             spacing: Tokens.spacing.small
 
@@ -160,7 +160,7 @@ Item {
                 StyledRect {
                     width: parent.width
                     visible: Ollama.responding && Ollama.streamContent.length === 0
-                    implicitHeight: thinkCol.implicitHeight + Tokens.padding.normal * 2
+                    implicitHeight: thinkCol.implicitHeight + Tokens.padding.medium * 2
                     radius: Tokens.rounding.large
                     color: Colours.palette.m3surfaceContainer
 
@@ -170,7 +170,7 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: Tokens.padding.normal
+                        anchors.margins: Tokens.padding.medium
                         spacing: Tokens.spacing.extraSmall
 
                         Row {
@@ -219,7 +219,9 @@ Item {
                 }
             }
 
-            ScrollBar.vertical: StyledScrollBar {}
+            StyledScrollBar.vertical: StyledScrollBar {
+                flickable: list
+            }
 
             onCountChanged: positionViewAtEnd()
 
