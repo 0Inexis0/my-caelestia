@@ -62,9 +62,12 @@ package_fallback() {
 
 # 1. Save your work ------------------------------------------------------------
 c_info "💾 Saving your current setup..."
-git add -A
-git commit -q -m "autosave before update ($(date '+%Y-%m-%d %H:%M'))" 2>/dev/null \
-    && c_ok "   saved" || echo "   (nothing new to save)"
+git add -A >/dev/null 2>&1
+if git commit -q -m "autosave before update ($(date '+%Y-%m-%d %H:%M'))" >/dev/null 2>&1; then
+    c_ok "   saved"
+else
+    echo "   (nothing new to save)"
+fi
 SAFE_POINT="$(git rev-parse HEAD)"
 
 # 2. Target = the Caelestia version installed on this machine ------------------
