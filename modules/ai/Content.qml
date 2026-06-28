@@ -6,8 +6,6 @@ import QtQuick.Layouts
 import Caelestia.Config
 import qs.components
 import qs.components.controls
-import qs.components.filedialog
-import qs.components.images
 import qs.services
 import qs.utils
 
@@ -16,15 +14,24 @@ Item {
 
     required property DrawerVisibilities visibilities
     required property real maxHeight
+    // FileDialog instantiated in Wrapper (survives the chat closing)
+    property var picker
 
     readonly property int padding: Tokens.padding.large
     // "" | "model" | "settings" | "history"
     property string overlay: ""
 
+    // Common context-length presets (tokens)
+    readonly property var ctxPresets: [2048, 4096, 8192, 16384, 32768, 65536, 131072]
+
     implicitWidth: 660
     implicitHeight: Math.min(root.maxHeight, header.implicitHeight + listWrapper.implicitHeight + inputWrapper.implicitHeight + padding * 2 + Tokens.spacing.small * 2)
 
     Component.onCompleted: Ollama.reloadModels()
+
+    function fmtCtx(n: int): string {
+        return n >= 1024 ? `${Math.round(n / 1024)}K` : `${n}`;
+    }
 
     Connections {
         function onAiChanged(): void {
@@ -33,15 +40,6 @@ Item {
         }
 
         target: root.visibilities
-    }
-
-    FileDialog {
-        id: imagePicker
-
-        title: qsTr("Attach an image")
-        filterLabel: qsTr("Image files")
-        filters: Images.validImageExtensions
-        onAccepted: path => Ollama.encodeAndAttach(path)
     }
 
     // Header
@@ -351,8 +349,13 @@ Item {
 
                 icon: "attach_file"
                 type: IconButton.Text
-                enabled: Ollama.available
-                onClicked: imagePicker.open()
+                enabled: Ollama.available && !!root.picker
+                onClicked: {
+                    // Close the chat first so the dialog isn't occluded by the
+                    // layer-shell drawer and doesn't trip the focus-grab.
+                    root.picker.open();
+                    root.visibilities.ai = false;
+                }
             }
 
             StyledTextField {
@@ -535,43 +538,44 @@ Item {
                 color: Colours.palette.m3onSurface
             }
 
-            // Context length
+            // Context length (snaps to presets)
             Column {
                 width: parent.width
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
-                    text: qsTr("Context length (num_ctx)")
+                    text: qsTr("Context length: %1 tokens").arg(root.fmtCtx(Ollama.numCtx))
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
                 }
 
-                StyledRect {
+                StyledSlider {
                     width: parent.width
-                    implicitHeight: ctxField.implicitHeight + Tokens.padding.small * 2
-                    radius: Tokens.rounding.small
-                    color: Colours.palette.m3surfaceContainer
+                    from: 0
+                    to: root.ctxPresets.length - 1
+                    stepSize: 1
+                    value: Math.max(0, root.ctxPresets.indexOf(Ollama.numCtx))
+                    onMoved: {
+                        Ollama.numCtx = root.ctxPresets[Math.round(value)];
+                        Ollama.persist();
+                    }
+                }
 
-                    StyledTextField {
-                        id: ctxField
+                Row {
+                    width: parent.width
 
-                        anchors.fill: parent
-                        anchors.leftMargin: Tokens.padding.small
-                        anchors.rightMargin: Tokens.padding.small
-                        verticalAlignment: TextInput.AlignVCenter
+                    Repeater {
+                        model: root.ctxPresets
 
-                        text: Ollama.numCtx
-                        inputMethodHints: Qt.ImhDigitsOnly
-                        validator: IntValidator {
-                            bottom: 256
-                            top: 131072
-                        }
-                        onEditingFinished: {
-                            const v = parseInt(text);
-                            if (!isNaN(v)) {
-                                Ollama.numCtx = v;
-                                Ollama.persist();
-                            }
+                        StyledText {
+                            required property int modelData
+                            required property int index
+
+                            width: parent.width / root.ctxPresets.length
+                            horizontalAlignment: index === 0 ? Text.AlignLeft : index === root.ctxPresets.length - 1 ? Text.AlignRight : Text.AlignHCenter
+                            text: root.fmtCtx(modelData)
+                            font: Tokens.font.label.small
+                            color: modelData === Ollama.numCtx ? Colours.palette.m3primary : Colours.palette.m3outline
                         }
                     }
                 }

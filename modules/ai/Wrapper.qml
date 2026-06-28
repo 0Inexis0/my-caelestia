@@ -4,12 +4,27 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.components
+import qs.components.filedialog
+import qs.services
+import qs.utils
 
 Item {
     id: root
 
     required property ShellScreen screen
     required property DrawerVisibilities visibilities
+
+    // Lives here (not in Content) so it survives the chat closing while picking
+    readonly property FileDialog imagePicker: FileDialog {
+        title: qsTr("Attach an image")
+        filterLabel: qsTr("Image files")
+        filters: Images.validImageExtensions
+        onAccepted: path => {
+            Ollama.encodeAndAttach(path);
+            root.visibilities.ai = true;
+        }
+        onRejected: root.visibilities.ai = true
+    }
 
     readonly property bool shouldBeActive: visibilities.ai
 
@@ -45,6 +60,7 @@ Item {
         sourceComponent: Content {
             visibilities: root.visibilities
             maxHeight: root.maxHeight
+            picker: root.imagePicker
         }
     }
 }
