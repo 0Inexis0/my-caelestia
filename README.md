@@ -14,32 +14,66 @@ upstream updates without losing my changes.
 
 ## What I changed vs upstream
 
-### Shell code
+### Shell code (the QML shell itself)
 
+- **🤖 AI assistant page** (`modules/ai/`, `services/Ollama.qml`) — a built-in chat panel
+  backed by a local [Ollama](https://ollama.com) server. Toggle it with **`Super+A`**. It
+  lists your installed models, streams responses (including the model's "thinking" stream),
+  keeps a persistent multi-chat history, supports image attachments for vision models, and
+  exposes context-length presets and a temperature control. Talks to `$OLLAMA_HOST` (default
+  `http://127.0.0.1:11434`) over `curl` — so it needs Ollama installed and running, but no
+  cloud/API key. Wired into the drawer/panel system (`modules/drawers/`, `Shortcuts.qml`,
+  Nexus page registries).
 - **🔧 Bluetooth volume fix** (`services/Audio.qml`) — the bar's volume slider, scroll and
   mute did nothing on Bluetooth speakers. Bluetooth volume lives on the PipeWire device
   *route*, which the node-level setter never touches, so it's now driven via `wpctl`
   instead. Works for both analog (ALSA) and Bluetooth (bluez) outputs.
 - **🖥️ Display / Monitor settings page** (`modules/nexus/pages/DisplayPage.qml`,
-  `modules/nexus/pages/display/MonitorSection.qml`) — a brand-new page in the Nexus
-  settings app to pick resolution, refresh rate, scale and position per monitor, choose
-  which output is on, and enable/disable displays. Reads `hyprctl monitors`, applies live
-  via `hyprctl`, and persists to `~/.config/hypr/monitors.d/` (restored on login by
-  `execs.lua` below).
+  `modules/nexus/pages/display/MonitorSection.qml`) — a new page in the Nexus settings app
+  to pick resolution, refresh rate and scale per monitor, enable/disable outputs, and
+  auto-disable the internal panel when an external is connected. Reads `hyprctl monitors`,
+  applies live via the Lua API, and persists to `~/.config/hypr/monitors.d/` (restored on
+  login by `execs.lua`). Toggling "Auto-disable" off now also re-enables the screen
+  (previously it left the display off and looked like it did nothing).
 
 ### User-space config — see [`personal/`](personal/)
 
-- **🎮 Wallpaper Engine** support in the wallpaper picker (`we-sync.sh` + `wallpaper-posthook.sh`).
-- **⌨️ Hyprland tweaks** — German keyboard layout (`input.lua`), my custom keybinds
-  (`keybinds.lua`, incl. `Super+A` for the AI page), and monitor restore + automatic
-  internal-display disable when an external is plugged in (`execs.lua`, the companion to
-  the Display page above).
-- **🎨 Shell config** — `shell.json` / `cli.json`: launcher `.` action prefix, bar and
-  appearance tweaks.
+- **🎮 Wallpaper Engine** integration in the wallpaper picker (`we-sync.sh`,
+  `wallpaper-posthook.sh`, `we-restore.sh`). Picking a Wallpaper Engine wallpaper runs
+  `linux-wallpaperengine` over the static background; picking a normal image stops it.
+  `we-restore.sh` re-launches it **at login** and **when a monitor is added/removed** (the
+  post-hook only fires on a wallpaper *change*), so a WE wallpaper survives reboots and
+  extends onto a newly-enabled screen automatically.
+- **⌨️ Hyprland config** (Lua, not `.conf`) — German keyboard layout (`input.lua`), my
+  keybinds (`keybinds.lua`, incl. `Super+A` for the AI page), touchpad gestures
+  (`gestures.lua`, 4-finger-down = sleep), window rules (`rules.lua`: Bitwarden + PiP
+  floats, special workspaces), and startup + monitor management (`execs.lua`: gammastep
+  night light, the auto-disable companion to the Display page, and the WE restore hook).
+- **😴 Sleep = plain suspend, not hibernate** — this machine has zram-only swap (no disk
+  swap / `resume=`), so hibernation is impossible and any attempt wedged the session. The
+  idle action (`shell.json`, 10 min), the sleep gesture and the `Super+Shift+L` keybind all
+  use `systemctl suspend`. Idle chain: lock @3 min → screen off @5 min → suspend @10 min.
+- **🎨 Shell config** (`shell.json`, `cli.json`) — launcher `.` action prefix, bar/appearance
+  tweaks, wallpaper directory pinned to `~/Bilder/Wallpapers`, and the idle/suspend timeouts
+  above.
 
-`personal/install.sh` symlinks all of this into `~/.config` so the repo stays the single
-source of truth. The machine-specific monitor configs only link for outputs actually
-present on the current machine, so the same repo installs cleanly on any hardware.
+## What's in [`personal/`](personal/)
+
+| Path | What it is |
+|---|---|
+| `bootstrap.sh` | One-command fresh-machine installer (packages → fork → config). |
+| `install.sh` | Symlinks `personal/config/` into `~/.config` and installs the `rice-update` command. |
+| `update.sh` | The `rice-update` command — system update + rebase onto upstream + safe test-load/rollback. |
+| `config/caelestia/shell.json`, `cli.json` | Shell (QML) and CLI config: bar, idle/suspend, wallpaper dir, post-hook. |
+| `config/caelestia/we-sync.sh`, `wallpaper-posthook.sh`, `we-restore.sh` | Wallpaper Engine integration (sync previews, switch on selection, restore on login/monitor change). |
+| `config/hypr/hyprland.lua` + `hypr/hyprland/*.lua` | Full Hyprland Lua config (entry point + all modules). |
+| `config/hypr/variables.lua` | App/keybind/visual variables (incl. `sleepGestureCmd`). |
+| `config/hypr/scripts/restart-shell.sh` | Debounced shell restart + WE restore on monitor add/remove. |
+| `config/hypr/monitors.d/*.conf` | Per-machine saved monitor modes — only linked for outputs actually present. |
+
+`install.sh` symlinks all of this into `~/.config` so the repo stays the single source of
+truth. Not tracked on purpose: `hypr/scheme/` (auto-generated theming) and the empty
+`hypr-user.lua` / `hypr-vars.lua` / `user-config.fish` stubs (auto-created on first run).
 
 ## How this fork works
 
@@ -60,6 +94,9 @@ It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice use
 login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
 command — then starts the shell. Done.
 
+> The AI page additionally needs [Ollama](https://ollama.com) running locally
+> (`ollama serve` + at least one pulled model). Everything else works without it.
+
 ## Update — one command
 
 ```sh
@@ -72,6 +109,10 @@ quickshell move together), auto-saves my changes, rebases them onto the new vers
 back, falling back to the plain system shell so the desktop is never left dead.
 
 Just want to sync the shell without a system update? `rice-update --skip-system`.
+
+> Note: `rice-update` only syncs the **shell repo**. The `personal/config` files are
+> deployed by `install.sh` (run once by `bootstrap.sh`); edit a live file and mirror the
+> change back into `personal/config/` so it stays tracked.
 
 ## Credits
 
