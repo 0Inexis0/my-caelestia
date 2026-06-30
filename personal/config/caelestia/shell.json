@@ -4,6 +4,9 @@
             "enabled": true
         }
     },
+    "background": {
+        "wallpaperEnabled": true
+    },
     "bar": {
         "activeWindow": {
             "compact": true,
@@ -26,6 +29,27 @@
             "occupiedBg": false,
             "showWindows": true,
             "shown": 3
+        }
+    },
+    "general": {
+        "idle": {
+            "timeouts": [
+                {
+                    "idleAction": "lock",
+                    "timeout": 180
+                },
+                {
+                    "idleAction": "dpms off",
+                    "returnAction": "dpms on",
+                    "timeout": 300
+                },
+                {
+                    "idleAction": [
+                        "suspend"
+                    ],
+                    "timeout": 600
+                }
+            ]
         }
     },
     "launcher": {
