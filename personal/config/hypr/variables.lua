@@ -53,6 +53,7 @@ return {
     cursorTheme                = "sweet-cursors",
     cursorSize                 = 24,
     sleepGestureCmd            = "systemctl suspend",
+    kbLayout                   = "de",   -- override per-machine in hypr-vars.lua
 
     ------------------
     ---- KEYBINDS ----
