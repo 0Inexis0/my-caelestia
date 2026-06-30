@@ -27,6 +27,11 @@ hl.on("hyprland.start", function()
 
     -- Start shell
     hl.exec_cmd("caelestia shell -d")
+
+    -- Re-launch Wallpaper Engine for the saved wallpaper. The wallpaper.postHook
+    -- only fires on a wallpaper *change*, so a WE wallpaper isn't rendered at
+    -- login until reselected; this restores it from path.txt.
+    hl.exec_cmd("bash ~/.config/caelestia/we-restore.sh")
 end)
 
 -- Auto-disable internal display(s) when an external monitor is connected, and

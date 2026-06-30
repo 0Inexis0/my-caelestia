@@ -117,6 +117,11 @@ ColumnLayout {
                     root.applyMonitor(root.currentMode, root.scaleVal, false);
             } else {
                 Quickshell.execDetached(["rm", "-f", root.markerFile]);
+                // Symmetric with enabling: turning auto-disable off should bring
+                // the screen back, otherwise the toggle appears to do nothing
+                // (and the manual "Enabled" toggle is the only way back on).
+                if (root.isDisabled)
+                    root.applyMonitor(root.currentMode, root.scaleVal, true);
             }
         }
     }

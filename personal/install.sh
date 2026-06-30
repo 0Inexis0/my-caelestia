@@ -36,11 +36,13 @@ link "$SRC/caelestia/shell.json"            "$DEST/caelestia/shell.json"
 link "$SRC/caelestia/cli.json"              "$DEST/caelestia/cli.json"
 link "$SRC/caelestia/we-sync.sh"            "$DEST/caelestia/we-sync.sh"
 link "$SRC/caelestia/wallpaper-posthook.sh" "$DEST/caelestia/wallpaper-posthook.sh"
+link "$SRC/caelestia/we-restore.sh"         "$DEST/caelestia/we-restore.sh"
 
 echo "Linking Hypr tweaks (keybinds, monitor restore/auto-disable, German keyboard)..."
 link "$SRC/hypr/hyprland/input.lua"    "$DEST/hypr/hyprland/input.lua"
 link "$SRC/hypr/hyprland/keybinds.lua" "$DEST/hypr/hyprland/keybinds.lua"
 link "$SRC/hypr/hyprland/execs.lua"    "$DEST/hypr/hyprland/execs.lua"
+link "$SRC/hypr/scripts/restart-shell.sh" "$DEST/hypr/scripts/restart-shell.sh"
 
 echo "Linking persisted monitor configs (only for monitors on THIS machine)..."
 # These .conf files are machine-specific (resolution/refresh/scale for a given
