@@ -39,7 +39,21 @@ end)
 -- settings app creates ~/.config/hypr/.auto-disable-<name>. Uses hl.monitor()
 -- (the legacy `hyprctl keyword monitor` does not work with the Lua parser).
 local function is_internal(name)
-    return name:match("^eDP") ~= nil or name:match("^LVDS") ~= nil
+    -- Type-guard: monitor events can hand us a table (no usable .name) or nil,
+    -- and calling :match on a non-string throws "attempt to call a nil value".
+    return type(name) == "string" and (name:match("^eDP") ~= nil or name:match("^LVDS") ~= nil)
+end
+
+-- Normalise a monitor event payload (table with .name, bare string, or nil) to
+-- a plain name string or nil. Avoids the `a and a.name or a` pitfall, which
+-- returns the table itself when .name is nil.
+local function mon_name(mon)
+    if type(mon) == "table" then
+        return mon.name
+    elseif type(mon) == "string" then
+        return mon
+    end
+    return nil
 end
 
 local function marked_internals()
@@ -74,7 +88,7 @@ local function restart_shell()
 end
 
 hl.on("monitor.added", function(mon)
-    local added = type(mon) == "table" and mon.name or mon
+    local added = mon_name(mon)
     if not (added and is_internal(added)) then
         -- Only disable internals while an external is actually present (never black out everything)
         if has_external(nil) then
@@ -87,7 +101,7 @@ hl.on("monitor.added", function(mon)
 end)
 
 hl.on("monitor.removed", function(mon)
-    local removed = type(mon) == "table" and mon.name or mon
+    local removed = mon_name(mon)
     if not has_external(removed) then
         for _, name in ipairs(marked_internals()) do
             hl.monitor({ output = name, disabled = false, mode = "preferred", position = "auto", scale = 1 })
