@@ -29,6 +29,15 @@ c_err()  { printf '\033[1;31m%s\033[0m\n' "$*"; }
 
 cd "$REPO" 2>/dev/null || { c_err "❌ Can't find your shell at $REPO"; exit 1; }
 
+# Refuse to "update" onto a machine whose Caelestia base never finished
+# installing — that's the bootstrap's job, not ours.
+if ! command -v qs >/dev/null 2>&1 || [ ! -e /usr/lib/qt6/qml/Caelestia ]; then
+    c_err "❌ The Caelestia base (quickshell / caelestia-shell package) is incomplete on this machine."
+    c_err "   Re-run the bootstrap to finish installing it:"
+    c_err "   curl -L tinyurl.com/my-caelestia -o r; bash r"
+    exit 1
+fi
+
 # Full system update via the AUR helper (keeps Caelestia + quickshell in step)
 system_update() {
     local helper; helper="$(command -v yay || command -v paru || true)"

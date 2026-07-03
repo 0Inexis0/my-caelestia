@@ -54,9 +54,11 @@ pkg()  { pacman -Q "$1" >/dev/null 2>&1; }
 [ "$(id -u)" = 0 ] && { c_err "❌ Don't run this as root. Run as your normal user."; exit 1; }
 have git || { c_err "❌ git is not installed (sudo pacman -S git)."; exit 1; }
 
-# The base is "installed" only if BOTH the CLI and quickshell exist — CachyOS
-# images can ship the caelestia CLI alone, and the shell can't run without qs.
-base_ok() { have caelestia && have qs; }
+# The base is "installed" only if the CLI, quickshell, Hyprland AND the shell
+# package's compiled QML plugin all exist. Checking any less lies: CachyOS
+# images ship the caelestia CLI alone, and quickshell can be present while the
+# caelestia-shell package (which provides the plugin) never got built.
+base_ok() { have caelestia && have qs && have Hyprland && [ -e /usr/lib/qt6/qml/Caelestia ]; }
 
 # Already got my fork AND a working base? Just update instead. -----------------
 if [ -e "$REPO/.git" ] && base_ok; then
