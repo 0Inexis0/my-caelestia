@@ -99,6 +99,20 @@ sudo -v || { c_err "❌ sudo failed."; exit 1; }
 SUDO_KEEPALIVE=$!
 trap 'kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
 
+# --- low-RAM guard ------------------------------------------------------------
+# AUR builds (quickshell, the caelestia-shell plugin) run one C++ compiler per
+# core, each needing 1-2 GB. In a small VM the kernel OOM-kills cc1plus and the
+# build dies with "fatal error: Signal Getötet/Killed". Cap jobs to ~RAM/2GB.
+MEM_GB="$(awk '/MemTotal/{printf "%d", $2/1048576}' /proc/meminfo 2>/dev/null || echo 8)"
+JOBS=$(( MEM_GB / 2 )); [ "$JOBS" -lt 1 ] && JOBS=1
+NPROC="$(nproc 2>/dev/null || echo "$JOBS")"
+[ "$JOBS" -gt "$NPROC" ] && JOBS="$NPROC"
+if [ "$JOBS" -lt "$NPROC" ]; then
+    c_warn "🧠 Only ${MEM_GB}GB RAM — capping builds to $JOBS parallel job(s) so the compiler isn't OOM-killed."
+    c_warn "   (More RAM = faster install. 8GB+ recommended just for the build.)"
+    export MAKEFLAGS="-j$JOBS" CMAKE_BUILD_PARALLEL_LEVEL="$JOBS" NINJAFLAGS="-j$JOBS"
+fi
+
 # --- 1. Caelestia base (only if missing) -------------------------------------
 # caelestia-shell (AUR) pulls in everything the shell needs: caelestia-cli,
 # quickshell-git, fonts, and all runtime tools. Hyprland comes from the repos.
