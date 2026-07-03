@@ -4,13 +4,14 @@
 # For every downloaded WE wallpaper it:
 #   1. symlinks the wallpaper folder into the Steam "content/431960" dir so that
 #      `linux-wallpaperengine <id>` can resolve it by id, and
-#   2. drops a symlink to its preview image into ~/Bilder/Wallpapers/WallpaperEngine
+#   2. drops a symlink to its preview image into <Pictures>/Wallpapers/WallpaperEngine
 #      so it shows up (with thumbnail + colour generation) in the launcher.
 #
 # Re-run this whenever you subscribe to / download new WE wallpapers.
 set -euo pipefail
 
-WALLS_DIR="${XDG_PICTURES_DIR:-$HOME/Bilder}/Wallpapers"
+PICTURES_DIR="${XDG_PICTURES_DIR:-$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")}"
+WALLS_DIR="$PICTURES_DIR/Wallpapers"
 WE_PICKER_DIR="$WALLS_DIR/WallpaperEngine"
 
 STEAM_ROOTS=(

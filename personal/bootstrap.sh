@@ -85,7 +85,7 @@ WANT_AI=y;   ask "AI assistant page (installs Ollama, runs fully locally)?"  y |
 # --- personal settings (written to local overrides; repo stays untouched) ----
 c_info "⚙️  A couple of personal settings (press Enter to keep the default):"
 KB="$(ask_val 'Keyboard layout' 'de')"
-DEF_WALL="$HOME/Pictures/Wallpapers"; [ -d "$HOME/Bilder" ] && DEF_WALL="$HOME/Bilder/Wallpapers"
+DEF_WALL="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers"
 WALL="$(ask_val 'Wallpaper folder' "$DEF_WALL")"
 
 # --- sudo keepalive ----------------------------------------------------------
@@ -149,6 +149,7 @@ mkdir -p "$WALL"
 if have python3; then
     REPO_WALL="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("paths",{}).get("wallpaperDir",""))' \
         "$REPO/personal/config/caelestia/shell.json" 2>/dev/null || true)"
+    REPO_WALL="${REPO_WALL/#\~/$HOME}"
     if [ "$WALL" != "$REPO_WALL" ]; then
         sj="$CFG/caelestia/shell.json"; tmp="$(mktemp)"
         if python3 - "$sj" "$WALL" >"$tmp" <<'PY'
