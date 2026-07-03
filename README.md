@@ -38,10 +38,11 @@ password once):
 curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 ```
 
-Typing this into a VM or a machine without copy-paste? Same thing, short enough to type:
+Typing this into a VM or a machine without copy-paste? Same thing, short enough to type
+(no `<`, `|` or other keys that hide when the keyboard layout is wrong):
 
 ```sh
-bash <(curl -L tinyurl.com/my-caelestia)
+curl -L tinyurl.com/my-caelestia -o r; bash r
 ```
 
 It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
