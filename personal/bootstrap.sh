@@ -81,18 +81,23 @@ base_ok                    && c_ok "  ✔ Caelestia + quickshell installed (base
 have linux-wallpaperengine && c_ok "  ✔ Wallpaper Engine renderer present"                 || echo  "  • Wallpaper Engine renderer not installed"
 pkg caelestia-sddm-locklike-git && c_ok "  ✔ SDDM login theme present"                      || echo  "  • SDDM login theme not installed"
 have ollama               && c_ok "  ✔ Ollama present (AI page will work)"                  || echo  "  • Ollama not installed (needed only for the AI page)"
+have music-discord-rpc    && c_ok "  ✔ Discord music rich presence present"                 || echo  "  • Discord music rich presence not installed"
 
 # --- feature selection -------------------------------------------------------
 c_info "🧩 Pick the optional features you want (anything already installed is reused, not reinstalled):"
 WANT_WE=y;   ask "Wallpaper Engine support (live wallpapers in the picker)?" y || WANT_WE=n
 WANT_SDDM=y; ask "Matching SDDM login screen theme?"                         y || WANT_SDDM=n
 WANT_AI=y;   ask "AI assistant page (installs Ollama, runs fully locally)?"  y || WANT_AI=n
+WANT_RPC=y;  ask "Discord Rich Presence for music (playerctl + music-discord-rpc, picks up Apple Music/Spotify/YT Music playing in your browser via MPRIS)?" y || WANT_RPC=n
 
 # --- personal settings (written to local overrides; repo stays untouched) ----
 c_info "⚙️  A couple of personal settings (press Enter to keep the default):"
 KB="$(ask_val 'Keyboard layout' 'de')"
 DEF_WALL="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers"
 WALL="$(ask_val 'Wallpaper folder' "$DEF_WALL")"
+if [ "$WANT_RPC" = y ]; then
+    RPC_PLAYER="$(ask_val 'Browser to pull "now playing" from for Discord (MPRIS player name, e.g. Brave, firefox, chromium)' 'Brave')"
+fi
 
 # --- sudo keepalive ----------------------------------------------------------
 c_info "🔑 This needs your sudo password (once)..."
@@ -132,6 +137,7 @@ EXTRAS=()
 [ "$WANT_WE" = y ]   && EXTRAS+=(linux-wallpaperengine-git)
 [ "$WANT_SDDM" = y ] && EXTRAS+=(caelestia-sddm-locklike-git)
 [ "$WANT_AI" = y ]   && EXTRAS+=(ollama)
+[ "$WANT_RPC" = y ]  && EXTRAS+=(playerctl music-discord-rpc-bin)
 if [ "${#EXTRAS[@]}" -gt 0 ]; then
     c_step "Installing selected extras: ${EXTRAS[*]}"
     "$HELPER" -S --needed --noconfirm "${EXTRAS[@]}" \
@@ -148,6 +154,13 @@ if [ "$WANT_AI" = y ] && have ollama; then
     sudo systemctl enable --now ollama 2>/dev/null \
         || c_warn "   (couldn't start the ollama service; start it later with: sudo systemctl enable --now ollama)"
     c_warn "   The AI page needs a model — pull one later with e.g.:  ollama pull llama3.2"
+fi
+
+if [ "$WANT_RPC" = y ] && have music-discord-rpc; then
+    c_step "Enabling Discord music rich presence (source: $RPC_PLAYER)..."
+    music-discord-rpc -a "$RPC_PLAYER" --only-when-playing enable >/dev/null 2>&1 \
+        && c_ok "  ✔ Playing something in $RPC_PLAYER now shows up on Discord." \
+        || c_warn "   (couldn't enable it — run manually later: music-discord-rpc -a \"$RPC_PLAYER\" --only-when-playing enable)"
 fi
 
 # --- 3. layer my fork over the package shell ---------------------------------
