@@ -74,6 +74,19 @@ ln -sfn "$PERSONAL/update.sh" "$BIN/rice-update"
 chmod +x "$PERSONAL/update.sh" "$PERSONAL/bootstrap.sh"
 echo "  linked $BIN/rice-update  ->  update anytime by typing: rice-update"
 
+# ~/.local/bin isn't on PATH everywhere (fresh fish setups in particular).
+case ":$PATH:" in *":$BIN:"*) ;; *)
+    if command -v fish >/dev/null 2>&1; then
+        fish -c "contains '$BIN' \$fish_user_paths; or fish_add_path -U '$BIN'" 2>/dev/null \
+            && echo "  added $BIN to fish's PATH (fish_add_path)"
+    fi
+    if ! grep -qs '.local/bin' "$HOME/.profile" 2>/dev/null; then
+        printf '\n# added by my-caelestia install.sh\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.profile"
+        echo "  added $BIN to PATH via ~/.profile"
+    fi
+    echo "  (open a new terminal if 'rice-update' isn't found in this one)"
+;; esac
+
 echo
 echo "Done. Restart the shell to apply:"
 echo "    qs -c caelestia kill; caelestia shell -d"

@@ -54,8 +54,12 @@ pkg()  { pacman -Q "$1" >/dev/null 2>&1; }
 [ "$(id -u)" = 0 ] && { c_err "❌ Don't run this as root. Run as your normal user."; exit 1; }
 have git || { c_err "❌ git is not installed (sudo pacman -S git)."; exit 1; }
 
-# Already got my fork? Just update instead. -----------------------------------
-if [ -e "$REPO/.git" ]; then
+# The base is "installed" only if BOTH the CLI and quickshell exist — CachyOS
+# images can ship the caelestia CLI alone, and the shell can't run without qs.
+base_ok() { have caelestia && have qs; }
+
+# Already got my fork AND a working base? Just update instead. -----------------
+if [ -e "$REPO/.git" ] && base_ok; then
     c_info "📦 my-caelestia is already installed — updating instead..."
     exec "$REPO/personal/update.sh"
 fi
@@ -71,7 +75,7 @@ HELPER_NAME="$(basename "$HELPER")"
 
 # --- show what's already here (so nothing gets installed twice) --------------
 c_info "🔍 Checking what's already on this machine..."
-have caelestia            && c_ok "  ✔ Caelestia installed (base install will be skipped)" || c_warn "  • Caelestia not found — will install it"
+base_ok                    && c_ok "  ✔ Caelestia + quickshell installed (base install will be skipped)" || c_warn "  • Caelestia base (shell/quickshell) incomplete — will install it"
 have linux-wallpaperengine && c_ok "  ✔ Wallpaper Engine renderer present"                 || echo  "  • Wallpaper Engine renderer not installed"
 pkg caelestia-sddm-locklike-git && c_ok "  ✔ SDDM login theme present"                      || echo  "  • SDDM login theme not installed"
 have ollama               && c_ok "  ✔ Ollama present (AI page will work)"                  || echo  "  • Ollama not installed (needed only for the AI page)"
@@ -96,12 +100,15 @@ SUDO_KEEPALIVE=$!
 trap 'kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
 
 # --- 1. Caelestia base (only if missing) -------------------------------------
-if have caelestia; then
+# caelestia-shell (AUR) pulls in everything the shell needs: caelestia-cli,
+# quickshell-git, fonts, and all runtime tools. Hyprland comes from the repos.
+if base_ok; then
     c_ok "✅ Caelestia already installed — skipping base install."
 else
-    c_step "Installing Caelestia (packages, Hyprland, fonts — this takes a while)..."
-    "$HELPER" -S --needed --noconfirm caelestia-cli
-    caelestia install --noconfirm --aur-helper "$HELPER_NAME"
+    c_step "Installing Caelestia (Hyprland, shell, quickshell, fonts — this takes a while)..."
+    "$HELPER" -S --needed --noconfirm hyprland xdg-desktop-portal-hyprland caelestia-shell \
+        || { c_err "❌ Base install failed — fix the error above and re-run."; exit 1; }
+    base_ok || { c_err "❌ Base install finished but 'caelestia'/'qs' still missing — something is off."; exit 1; }
 fi
 
 # --- 2. selected extras (--needed = skips anything already installed) --------
@@ -121,12 +128,17 @@ if [ "$WANT_AI" = y ] && have ollama; then
 fi
 
 # --- 3. layer my fork over the package shell ---------------------------------
-if [ -e "$REPO" ]; then
-    mv "$REPO" "$REPO.before-mine.bak"
-    c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-mine.bak"
+if [ -e "$REPO/.git" ] && [ "$(git -C "$REPO" remote get-url origin 2>/dev/null)" = "$URL" ]; then
+    c_step "My shell fork is already cloned — updating it..."
+    git -C "$REPO" pull -q --ff-only || c_warn "   (couldn't fast-forward — keeping the existing checkout)"
+else
+    if [ -e "$REPO" ]; then
+        mv "$REPO" "$REPO.before-mine.bak"
+        c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-mine.bak"
+    fi
+    c_step "Installing my shell fork..."
+    git clone -q "$URL" "$REPO"
 fi
-c_step "Installing my shell fork..."
-git clone -q "$URL" "$REPO"
 cd "$REPO"
 git remote add upstream "$UPSTREAM" 2>/dev/null || true
 git fetch -q upstream --tags 2>/dev/null || true
