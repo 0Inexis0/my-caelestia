@@ -23,11 +23,7 @@ upstream updates without losing my changes.
 | ✨ Feature | Display settings page | New Nexus page: per-monitor resolution / refresh rate / scale, enable/disable outputs, auto-disable internal panel; persists to `monitors.d/`. | `modules/nexus/pages/DisplayPage.qml`, `…/display/` |
 | ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
 | ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + rebase onto upstream with test-load and automatic rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
-| 🐛 Fix | Bluetooth volume | Bar volume slider / scroll / mute did nothing on Bluetooth outputs — volume lives on the PipeWire device *route*, now driven via `wpctl`. | `services/Audio.qml` |
-| 🐛 Fix | Auto-disable toggle | Turning "auto-disable internal monitor" **off** now re-enables the screen (before it stayed off and looked broken). | `modules/nexus/pages/display/` |
-| 🐛 Fix | Monitor event crash | Hyprland monitor-event handlers type-guard their payloads (fixed an `is_internal` crash on hotplug). | `personal/config/hypr/hyprland/execs.lua` |
-| 🐛 Fix | AI page polish | Settings sliders actually apply; assistant panel renders correctly; image picker no longer occluded. | `modules/ai/` |
-| 🐛 Fix | WE sync & hotplug | `we-sync.sh` no longer drops wallpapers with spaces in the title; post-hook survives monitor renames and hybrid-GPU setups. | `personal/config/caelestia/` |
+| 🐛 Upstream fix | Bluetooth volume | Upstream's bar volume slider / scroll / mute did nothing on Bluetooth outputs — volume lives on the PipeWire device *route*, which the node-level setter never touches. Now driven via `wpctl`, works for ALSA and bluez alike. | `services/Audio.qml` |
 | ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work — idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
 | ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
 
