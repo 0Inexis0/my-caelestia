@@ -119,6 +119,16 @@ local function load_saved_monitors()
     if not p then
         return
     end
+    -- Never re-enable an auto-disabled internal here: a config reload re-runs
+    -- this file, and an enable->disable bounce destroys the wl_output global,
+    -- which crashes XWayland (closing every X11 app). Keep such monitors
+    -- disabled at parse time instead of fixing it up after the reload.
+    local off = {}
+    if has_external(nil) then
+        for _, name in ipairs(marked_internals()) do
+            off[name] = true
+        end
+    end
     for path in p:lines() do
         local name = path:match("/([^/]+)%.conf$")
         local f = name and io.open(path, "r")
@@ -128,7 +138,7 @@ local function load_saved_monitors()
             local mode, pos, scale = (spec or ""):match("^([^,]+),([^,]+),([^,]+)$")
             if mode then
                 pcall(function()
-                    hl.monitor({ output = name, disabled = false, mode = mode, position = pos, scale = tonumber(scale) })
+                    hl.monitor({ output = name, disabled = off[name] or false, mode = mode, position = pos, scale = tonumber(scale) })
                 end)
             end
         end
@@ -138,9 +148,9 @@ end
 load_saved_monitors()
 
 -- Honor auto-disable for monitors already present at login or after a config
--- reload. The monitor.added events for startup monitors can fire before the
--- handler above is registered, and a reload re-runs the default monitor rule
--- (which would re-enable the internal), so re-evaluate on both events.
+-- reload. Applied at parse time (this file re-runs on every reload) so the
+-- internal's final rule is already "disabled" and it never flaps on; the
+-- hyprland.start hook covers login, where monitors may not exist yet at parse.
 local function apply_auto_disable()
     if has_external(nil) then
         for _, name in ipairs(marked_internals()) do
@@ -148,8 +158,8 @@ local function apply_auto_disable()
         end
     end
 end
+apply_auto_disable()
 hl.on("hyprland.start", apply_auto_disable)
-hl.on("config.reloaded", apply_auto_disable)
 
 -- Resizer listener
 hl.on("window.title", function(win)
