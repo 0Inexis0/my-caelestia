@@ -1,4 +1,6 @@
-local scheme = require("scheme.current")
+-- current.lua is generated at runtime (theme tool); fall back to the shipped default on a fresh machine
+local ok, scheme = pcall(require, "scheme.current")
+if not ok then scheme = require("scheme.default") end
 
 return {
     ------------------
