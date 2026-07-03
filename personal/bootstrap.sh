@@ -137,6 +137,13 @@ if [ "${#EXTRAS[@]}" -gt 0 ]; then
     "$HELPER" -S --needed --noconfirm "${EXTRAS[@]}" \
         || c_warn "   (an extra failed to build — non-fatal, your desktop still works)"
 fi
+# --- 2b. apps my config expects (terminal keybind, clipboard, agents, ...) ----
+c_step "Installing the apps the rice uses (foot terminal, clipboard history, ...)..."
+"$HELPER" -S --needed --noconfirm \
+    foot wl-clipboard cliphist trash-cli gammastep polkit-gnome gnome-keyring \
+    thunar pavucontrol firefox \
+    || c_warn "   (some apps failed to install — keybinds for them just won't do anything)"
+
 if [ "$WANT_AI" = y ] && have ollama; then
     sudo systemctl enable --now ollama 2>/dev/null \
         || c_warn "   (couldn't start the ollama service; start it later with: sudo systemctl enable --now ollama)"
