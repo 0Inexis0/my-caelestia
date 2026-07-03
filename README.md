@@ -29,6 +29,39 @@ upstream updates without losing my changes.
 
 Details below.
 
+## Install on a new machine — one command
+
+On a fresh Arch/CachyOS machine, paste this in a normal terminal (it asks for your sudo
+password once):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
+```
+
+It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
+login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
+command — then starts the shell. Done.
+
+> The AI page additionally needs [Ollama](https://ollama.com) running locally
+> (`ollama serve` + at least one pulled model). Everything else works without it.
+
+## Update — one command
+
+```sh
+rice-update
+```
+
+That's the whole update. It runs a full system update (`yay -Syu`, so Caelestia and
+quickshell move together), auto-saves my changes, rebases them onto the new version,
+**test-loads it before switching**, restarts — and if anything ever goes wrong it rolls
+back, falling back to the plain system shell so the desktop is never left dead.
+
+Just want to sync the shell without a system update? `rice-update --skip-system`.
+
+> Note: `rice-update` only syncs the **shell repo**. The `personal/config` files are
+> deployed by `install.sh` (run once by `bootstrap.sh`); edit a live file and mirror the
+> change back into `personal/config/` so it stays tracked.
+
 ## What I changed vs upstream
 
 ### Shell code (the QML shell itself)
@@ -97,39 +130,6 @@ truth. Not tracked on purpose: `hypr/scheme/` (auto-generated theming) and the e
 `quickshell` loads `~/.config/quickshell/caelestia` in preference to the system package at
 `/etc/xdg/quickshell/caelestia`. So this repo, cloned to that path, **is** the running shell —
 which means the `caelestia-shell` package can update freely without ever overwriting my changes.
-
-## Install on a new machine — one command
-
-On a fresh Arch/CachyOS machine, paste this in a normal terminal (it asks for your sudo
-password once):
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
-```
-
-It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
-login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
-command — then starts the shell. Done.
-
-> The AI page additionally needs [Ollama](https://ollama.com) running locally
-> (`ollama serve` + at least one pulled model). Everything else works without it.
-
-## Update — one command
-
-```sh
-rice-update
-```
-
-That's the whole update. It runs a full system update (`yay -Syu`, so Caelestia and
-quickshell move together), auto-saves my changes, rebases them onto the new version,
-**test-loads it before switching**, restarts — and if anything ever goes wrong it rolls
-back, falling back to the plain system shell so the desktop is never left dead.
-
-Just want to sync the shell without a system update? `rice-update --skip-system`.
-
-> Note: `rice-update` only syncs the **shell repo**. The `personal/config` files are
-> deployed by `install.sh` (run once by `bootstrap.sh`); edit a live file and mirror the
-> change back into `personal/config/` so it stays tracked.
 
 ## Credits
 
