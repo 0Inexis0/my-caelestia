@@ -38,6 +38,12 @@ password once):
 curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 ```
 
+Typing this into a VM or a machine without copy-paste? Same thing, short enough to type:
+
+```sh
+bash <(curl -L tinyurl.com/my-caelestia)
+```
+
 It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
 login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
 command — then starts the shell. Done.
