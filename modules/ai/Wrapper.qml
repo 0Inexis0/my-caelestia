@@ -12,7 +12,7 @@ Item {
     id: root
 
     required property ShellScreen screen
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
 
     // Lives here (not in Content) so it survives the chat closing while picking
     readonly property FileDialog imagePicker: FileDialog {
@@ -21,12 +21,12 @@ Item {
         filters: Images.validImageExtensions
         onAccepted: path => {
             Ollama.encodeAndAttach(path);
-            root.visibilities.ai = true;
+            root.screenState.ai = true;
         }
-        onRejected: root.visibilities.ai = true
+        onRejected: root.screenState.ai = true
     }
 
-    readonly property bool shouldBeActive: visibilities.ai
+    readonly property bool shouldBeActive: screenState.ai
 
     readonly property real maxHeight: Math.min(740, screen.height - Config.border.thickness * 2 - Tokens.padding.extraLarge * 2)
 
@@ -58,7 +58,7 @@ Item {
         active: root.shouldBeActive || root.visible
 
         sourceComponent: Content {
-            visibilities: root.visibilities
+            screenState: root.screenState
             maxHeight: root.maxHeight
             picker: root.imagePicker
         }

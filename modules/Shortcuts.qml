@@ -116,8 +116,8 @@ Scope {
         onPressed: {
             if (root.hasFullscreen)
                 return;
-            const visibilities = Visibilities.getForActive();
-            visibilities.ai = !visibilities.ai;
+            const screenState = ShellState.forActive();
+            screenState.ai = !screenState.ai;
         }
     }
 

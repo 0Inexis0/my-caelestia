@@ -12,7 +12,7 @@ import qs.utils
 Item {
     id: root
 
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
     required property real maxHeight
     // FileDialog instantiated in Wrapper (survives the chat closing)
     property var picker
@@ -35,11 +35,11 @@ Item {
 
     Connections {
         function onAiChanged(): void {
-            if (!root.visibilities.ai)
+            if (!root.screenState.ai)
                 root.overlay = "";
         }
 
-        target: root.visibilities
+        target: root.screenState
     }
 
     // Header
@@ -136,7 +136,7 @@ Item {
         IconButton {
             icon: "close"
             type: IconButton.Text
-            onClicked: root.visibilities.ai = false
+            onClicked: root.screenState.ai = false
         }
     }
 
@@ -354,7 +354,7 @@ Item {
                     // Close the chat first so the dialog isn't occluded by the
                     // layer-shell drawer and doesn't trip the focus-grab.
                     root.picker.open();
-                    root.visibilities.ai = false;
+                    root.screenState.ai = false;
                 }
             }
 
@@ -384,18 +384,18 @@ Item {
                     if (root.overlay)
                         root.overlay = "";
                     else
-                        root.visibilities.ai = false;
+                        root.screenState.ai = false;
                 }
 
                 Component.onCompleted: forceActiveFocus()
 
                 Connections {
                     function onAiChanged(): void {
-                        if (root.visibilities.ai)
+                        if (root.screenState.ai)
                             input.forceActiveFocus();
                     }
 
-                    target: root.visibilities
+                    target: root.screenState
                 }
             }
 

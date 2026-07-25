@@ -122,7 +122,7 @@ Item {
         id: ai
 
         screen: root.screen
-        visibilities: root.visibilities
+        screenState: root.screenState
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
