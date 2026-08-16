@@ -57,23 +57,51 @@ restart_shell() {
     sleep 4
 }
 
+ERRPAT="Failed to load|unavailable|is not a type"
+
 # Is a caelestia shell running AND free of load errors?
+# The .qslog files are a binary format, so they have to be decoded with
+# `qs log` — grepping the raw file never matches anything.
 shell_healthy() {
     pgrep -f "qs -c caelestia" >/dev/null 2>&1 || return 1
     local log; log="$(ls -t "$RUNDIR"/*/log.qslog 2>/dev/null | head -1)"
-    [ -n "$log" ] && grep -qiE "Failed to load|unavailable|is not a type" "$log" && return 1
+    [ -n "$log" ] || return 0
+    qs log -t 200 "$log" 2>/dev/null | grep -qiE "$ERRPAT" && return 1
     return 0
 }
 
-# Load the repo in a throwaway instance and report whether it loads cleanly
+# Load the repo in a throwaway instance and report whether it loads cleanly.
+# Quickshell identifies an instance by its config path, so this has to run from
+# a scratch copy: pointed at $REPO itself, `-n` sees the live shell and exits
+# immediately ("An instance of this configuration is already running"), which
+# looks exactly like a failed load and rolls back a perfectly good update.
 test_load_ok() {
-    local tlog="/tmp/rice-update-test.$$.log"
-    timeout 9 qs -p "$REPO/shell.qml" -n >"$tlog" 2>&1 &
-    local p=$!; sleep 8
+    local tlog tdir r=0
+    tlog="$(mktemp /tmp/rice-update-test.XXXXXX.log)"
+    tdir="$(mktemp -d /tmp/rice-update-test.XXXXXX)"
+    if ! cp -a "$REPO/." "$tdir/" 2>/dev/null; then
+        rm -rf "$tdir" "$tlog"; return 0   # can't test — don't block the update
+    fi
+    rm -rf "$tdir/.git"
+
+    timeout 20 qs -p "$tdir/shell.qml" -n >"$tlog" 2>&1 &
+    local p=$!
+    # Stop as soon as it has loaded (usually ~1s) instead of always waiting.
+    local i=0
+    while [ $i -lt 30 ]; do
+        grep -qi "Configuration Loaded" "$tlog" && break
+        grep -qiE "$ERRPAT" "$tlog" && break
+        sleep 0.5; i=$((i + 1))
+    done
     kill "$p" >/dev/null 2>&1
-    if grep -qiE "Failed to load|unavailable|is not a type" "$tlog"; then rm -f "$tlog"; return 1; fi
-    grep -qi "Configuration Loaded" "$tlog"; local r=$?
-    rm -f "$tlog"; return $r
+
+    if grep -qiE "$ERRPAT" "$tlog" || ! grep -qi "Configuration Loaded" "$tlog"; then
+        r=1
+        cp "$tlog" /tmp/rice-update-last-failure.log 2>/dev/null
+        c_warn "   (details: /tmp/rice-update-last-failure.log)"
+    fi
+    rm -rf "$tdir" "$tlog"
+    return $r
 }
 
 # Last resort: run the unmodified system package shell so the desktop works
@@ -123,7 +151,7 @@ OLDBASE="$(git merge-base HEAD "$TAG")"
 rebase_failed=0
 if ! git rebase --onto "$TAG" "$OLDBASE" mine >/dev/null 2>&1; then
     # auto-resolve README-only conflicts (we always want our README); bail on any code conflict
-    while [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; do
+    while [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]; do
         conflicts="$(git diff --name-only --diff-filter=U)"
         if [ "$conflicts" = "README.md" ]; then
             git checkout --theirs README.md >/dev/null 2>&1; git add README.md
