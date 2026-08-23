@@ -101,7 +101,11 @@ Just want to sync the shell without a system update? `rice-update --skip-system`
   `linux-wallpaperengine` over the static background; picking a normal image stops it.
   `we-restore.sh` re-launches it **at login** and **when a monitor is added/removed** (the
   post-hook only fires on a wallpaper *change*), so a WE wallpaper survives reboots and
-  extends onto a newly-enabled screen automatically.
+  extends onto a newly-enabled screen automatically. If the renderer dies the moment it
+  starts — which is what an Arch soname bump does to the prebuilt `linux-wallpaperengine`
+  binary (ffmpeg 8 → 9 renamed `libavcodec.so.62` → `.63`) — the post-hook now catches it
+  and sends a desktop notification with the reason instead of silently doing nothing. Fix
+  is to rebuild the AUR package: `paru -S linux-wallpaperengine-git`.
 - **⌨️ Hyprland config** (Lua, not `.conf`) — German keyboard layout (`input.lua`), my
   keybinds (`keybinds.lua`, incl. `Super+A` for the AI page), touchpad gestures
   (`gestures.lua`, 4-finger-down = sleep), window rules (`rules.lua`: Bitwarden + PiP

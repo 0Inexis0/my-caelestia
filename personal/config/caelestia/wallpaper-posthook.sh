@@ -51,5 +51,19 @@ done
 # Detach so the hook returns immediately; log for debugging.
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/wallpaper/we.log"
 mkdir -p "$(dirname "$LOG")"
-setsid -f linux-wallpaperengine "${args[@]}" >"$LOG" 2>&1 || \
-    echo "failed to launch linux-wallpaperengine" >>"$LOG"
+setsid -f linux-wallpaperengine "${args[@]}" >"$LOG" 2>&1
+
+# setsid forks, so the launch above reports success even when the renderer dies
+# on the spot -- which is exactly what an Arch soname bump does to it (e.g.
+# ffmpeg 8 -> 9 renamed libavcodec.so.62 -> .63, leaving the prebuilt binary
+# unable to start). That failed silently and just looked like "the live
+# wallpaper stopped working", so check it actually survived and say why if not.
+# Detached as well, so the hook itself still returns immediately.
+LOG="$LOG" setsid -f bash -c '
+    sleep 1.5
+    pgrep -x linux-wallpaper >/dev/null && exit 0
+    reason="$(tail -n 3 "$LOG" | tr "\n" " ")"
+    echo "renderer exited immediately after launch" >>"$LOG"
+    notify-send -a "Wallpaper Engine" -u critical \
+        "Live wallpaper failed to start" "${reason:-see $LOG}"
+' 2>/dev/null
