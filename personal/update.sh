@@ -52,11 +52,23 @@ qs_binary_ok() {
     return 0
 }
 
+# CachyOS's noctalia-qs provides the name `quickshell-git` and installs its own
+# /usr/bin/qs, but its quickshell is older than caelestia-shell needs — configs
+# then fail with `Unrecognized pragma "DefaultEnv ..."`, ours and /etc/xdg's
+# alike. qs runs fine in that state, so only the file owner gives it away.
+if command -v pacman >/dev/null 2>&1 && ! pacman -Qoq /usr/bin/qs 2>/dev/null | grep -qx quickshell-git; then
+    c_err "❌ /usr/bin/qs belongs to $(pacman -Qoq /usr/bin/qs 2>/dev/null), not quickshell-git."
+    c_err "   That build is too old for the installed caelestia-shell. Swap it back:"
+    c_err "   paru -Rdd noctalia-qs && paru -S aur/quickshell-git"
+    c_err "   Then run rice-update again — your setup is untouched."
+    exit 1
+fi
+
 if ! qs_binary_ok; then
     c_err "❌ quickshell itself can't start. This is a Qt ABI break, not your config:"
     qs --version 2>&1 | head -2 | sed 's/^/   /'
     c_err "   quickshell links Qt private API and must be rebuilt after a qt6-base upgrade:"
-    c_err "   paru -S --rebuild --needed quickshell-git"
+    c_err "   paru -S --rebuild aur/quickshell-git"
     c_err "   Then run rice-update again — your setup is untouched."
     exit 1
 fi
@@ -137,7 +149,7 @@ package_fallback() {
     # shelving the repo would lose the customizations for no gain.
     if ! qs_binary_ok; then
         c_err "   quickshell is broken at the binary level; keeping your setup in place."
-        c_err "   Rebuild it, then re-run rice-update:  paru -S --rebuild --needed quickshell-git"
+        c_err "   Rebuild it, then re-run rice-update:  paru -S --rebuild aur/quickshell-git"
         return
     fi
     # Shelving only helps if the *package* config still loads. When the failure

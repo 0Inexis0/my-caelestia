@@ -58,7 +58,13 @@ have git || { c_err "❌ git is not installed (sudo pacman -S git)."; exit 1; }
 # package's compiled QML plugin all exist. Checking any less lies: CachyOS
 # images ship the caelestia CLI alone, and quickshell can be present while the
 # caelestia-shell package (which provides the plugin) never got built.
-base_ok() { have caelestia && have qs && have Hyprland && [ -e /usr/lib/qt6/qml/Caelestia ]; }
+# CachyOS ships `noctalia-qs`, which declares provides=(quickshell quickshell-git)
+# and installs its own /usr/bin/qs. It satisfies caelestia-shell's dependency on
+# the *name* quickshell-git, but bundles a quickshell older than the shell needs,
+# so every config — ours and /etc/xdg's — then dies at launch with
+# `Unrecognized pragma "DefaultEnv ..."`. Only the real AUR package will do.
+qs_is_real() { pacman -Qoq /usr/bin/qs 2>/dev/null | grep -qx quickshell-git; }
+base_ok() { have caelestia && have qs && qs_is_real && have Hyprland && [ -e /usr/lib/qt6/qml/Caelestia ]; }
 
 # Already got my fork AND a working base? Just update instead. -----------------
 if [ -e "$REPO/.git" ] && base_ok; then
@@ -127,9 +133,29 @@ if base_ok; then
     c_ok "✅ Caelestia already installed — skipping base install."
 else
     c_step "Installing Caelestia (Hyprland, shell, quickshell, fonts — this takes a while)..."
+    # Build quickshell from the AUR *first*, explicitly. caelestia-shell only
+    # asks for the name `quickshell-git`, and pacman prefers a binary repo when
+    # resolving that on its own — which on CachyOS silently pulls noctalia-qs
+    # (see qs_is_real above) and leaves an unbootable shell. Installing the real
+    # package up front means the dependency is already satisfied correctly.
+    if pacman -Qq noctalia-qs >/dev/null 2>&1; then
+        c_warn "   Removing noctalia-qs — its quickshell is too old for Caelestia..."
+        sudo pacman -Rdd --noconfirm noctalia-qs >/dev/null 2>&1 \
+            || c_warn "   (couldn't remove it; the quickshell install below may complain)"
+    fi
+    "$HELPER" -S --needed --noconfirm aur/quickshell-git \
+        || { c_err "❌ quickshell failed to build — fix the error above and re-run."; exit 1; }
     "$HELPER" -S --needed --noconfirm hyprland xdg-desktop-portal-hyprland caelestia-shell \
         || { c_err "❌ Base install failed — fix the error above and re-run."; exit 1; }
-    base_ok || { c_err "❌ Base install finished but 'caelestia'/'qs' still missing — something is off."; exit 1; }
+    if ! base_ok; then
+        if have qs && ! qs_is_real; then
+            c_err "❌ /usr/bin/qs came from $(pacman -Qoq /usr/bin/qs 2>/dev/null), not quickshell-git."
+            c_err "   Fix with: paru -Rdd noctalia-qs && paru -S aur/quickshell-git"
+        else
+            c_err "❌ Base install finished but 'caelestia'/'qs' still missing — something is off."
+        fi
+        exit 1
+    fi
 fi
 
 # --- 2. selected extras (--needed = skips anything already installed) --------
