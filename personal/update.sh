@@ -18,6 +18,7 @@ set -uo pipefail
 
 REPO="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/caelestia"
 RUNDIR="/run/user/$(id -u)/quickshell/by-id"
+PKGDIR="/etc/xdg/quickshell/caelestia"   # the unmodified system package shell
 
 DO_SYSTEM=1
 for a in "$@"; do case "$a" in -s|--skip-system) DO_SYSTEM=0 ;; esac; done
@@ -97,11 +98,11 @@ shell_healthy() {
 # a scratch copy: pointed at $REPO itself, `-n` sees the live shell and exits
 # immediately ("An instance of this configuration is already running"), which
 # looks exactly like a failed load and rolls back a perfectly good update.
-test_load_ok() {
-    local tlog tdir r=0
+test_load_dir() {
+    local src="$1" quiet="$2" tlog tdir r=0
     tlog="$(mktemp /tmp/rice-update-test.XXXXXX.log)"
     tdir="$(mktemp -d /tmp/rice-update-test.XXXXXX)"
-    if ! cp -a "$REPO/." "$tdir/" 2>/dev/null; then
+    if ! cp -a "$src/." "$tdir/" 2>/dev/null; then
         rm -rf "$tdir" "$tlog"; return 0   # can't test — don't block the update
     fi
     rm -rf "$tdir/.git"
@@ -119,12 +120,16 @@ test_load_ok() {
 
     if grep -qiE "$ERRPAT" "$tlog" || ! grep -qi "Configuration Loaded" "$tlog"; then
         r=1
-        cp "$tlog" /tmp/rice-update-last-failure.log 2>/dev/null
-        c_warn "   (details: /tmp/rice-update-last-failure.log)"
+        if [ -z "$quiet" ]; then
+            cp "$tlog" /tmp/rice-update-last-failure.log 2>/dev/null
+            c_warn "   (details: /tmp/rice-update-last-failure.log)"
+        fi
     fi
     rm -rf "$tdir" "$tlog"
     return $r
 }
+
+test_load_ok() { test_load_dir "$REPO" ""; }
 
 # Last resort: run the unmodified system package shell so the desktop works
 package_fallback() {
@@ -133,6 +138,16 @@ package_fallback() {
     if ! qs_binary_ok; then
         c_err "   quickshell is broken at the binary level; keeping your setup in place."
         c_err "   Rebuild it, then re-run rice-update:  paru -S --rebuild --needed quickshell-git"
+        return
+    fi
+    # Shelving only helps if the *package* config still loads. When the failure
+    # is in the shared base (a quickshell too old for the installed
+    # caelestia-shell, say), /etc/xdg is just as broken — moving the repo aside
+    # would cost the customizations and fix nothing.
+    if [ -d "$PKGDIR" ] && ! test_load_dir "$PKGDIR" quiet; then
+        c_err "   The system shell fails to load too — this is a quickshell/caelestia"
+        c_err "   version mismatch, not your config. Keeping your setup in place."
+        c_err "   Details: /tmp/rice-update-last-failure.log"
         return
     fi
     c_warn "🛟 Falling back to the system shell so your desktop keeps working..."
