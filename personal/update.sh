@@ -38,6 +38,28 @@ if ! command -v qs >/dev/null 2>&1 || [ ! -e /usr/lib/qt6/qml/Caelestia ]; then
     exit 1
 fi
 
+# `qs` links Qt's *private* ABI, so a qt6-base upgrade can leave the binary
+# unable to start even though every package still looks installed. That
+# failure makes any config look broken: the test-load in step 4 would blame
+# your changes, roll them back, and shelve the repo in a .broken-*.bak.
+# Catch it here, before anything touches the repo.
+qs_binary_ok() {
+    local out rc
+    out="$(qs --version 2>&1)"; rc=$?
+    [ $rc -eq 0 ] || return 1
+    printf '%s' "$out" | grep -qiE 'symbol lookup error|undefined symbol|error while loading shared libraries' && return 1
+    return 0
+}
+
+if ! qs_binary_ok; then
+    c_err "❌ quickshell itself can't start. This is a Qt ABI break, not your config:"
+    qs --version 2>&1 | head -2 | sed 's/^/   /'
+    c_err "   quickshell links Qt private API and must be rebuilt after a qt6-base upgrade:"
+    c_err "   paru -S --rebuild --needed quickshell-git"
+    c_err "   Then run rice-update again — your setup is untouched."
+    exit 1
+fi
+
 # Full system update via the AUR helper (keeps Caelestia + quickshell in step)
 system_update() {
     local helper; helper="$(command -v yay || command -v paru || true)"
@@ -106,6 +128,13 @@ test_load_ok() {
 
 # Last resort: run the unmodified system package shell so the desktop works
 package_fallback() {
+    # If qs can't run at all, the package shell is just as dead as this one —
+    # shelving the repo would lose the customizations for no gain.
+    if ! qs_binary_ok; then
+        c_err "   quickshell is broken at the binary level; keeping your setup in place."
+        c_err "   Rebuild it, then re-run rice-update:  paru -S --rebuild --needed quickshell-git"
+        return
+    fi
     c_warn "🛟 Falling back to the system shell so your desktop keeps working..."
     qs -c caelestia kill >/dev/null 2>&1; sleep 1
     mv "$REPO" "$REPO.broken-$(date +%s).bak"
