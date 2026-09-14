@@ -15,6 +15,19 @@ upstream updates without losing my changes.
 
 </div>
 
+## Upstream and compiled plugin
+
+This fork tracks upstream `main`, including unreleased changes. `rice-update`
+builds and installs **the QML shell and C++ plugin from the same commit** into a
+private release under `~/.local/share/my-caelestia/releases/`. It never replaces
+files owned by the system `caelestia-shell` package. The stable package supplies
+runtime dependencies; its older plugin is not used by the managed shell.
+
+The source checkout is `~/.local/share/my-caelestia/source` on branch `mine`.
+The active configuration at `~/.config/quickshell/caelestia` points to a built
+release. Normal `caelestia shell` commands continue to work. XDG directory
+overrides are respected. See [the integration review](docs/upstream-review-2026-09-14.md).
+
 ## Differences from upstream at a glance
 
 | Type | Change | Summary | Where |
@@ -22,9 +35,9 @@ upstream updates without losing my changes.
 | ✨ Feature | AI assistant page | Local [Ollama](https://ollama.com) chat panel (**`Super+A`**): streaming responses incl. thinking, multi-chat history, image attachments, context & temperature settings. No cloud, no API key. | `modules/ai/`, `services/Ollama.qml` |
 | ✨ Feature | Display settings page | New Nexus page: per-monitor resolution / refresh rate / scale, enable/disable outputs, auto-disable internal panel; persists to `monitors.d/`. | `modules/nexus/pages/DisplayPage.qml`, `…/display/` |
 | ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
-| ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + rebase onto upstream with test-load and automatic rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
+| ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + merge of fork/upstream, matching plugin build, load test and rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
 | ✨ Feature | Discord music rich presence | Optional in `bootstrap.sh`: installs `playerctl` + `music-discord-rpc`, reads "now playing" over MPRIS from whichever browser you name (default Brave) — works for Apple Music, Spotify, YT Music, anything playing as a tab. | `personal/bootstrap.sh` |
-| 🐛 Upstream fix | Bluetooth volume | Upstream's bar volume slider / scroll / mute did nothing on Bluetooth outputs — volume lives on the PipeWire device *route*, which the node-level setter never touches. Now driven via `wpctl`, works for ALSA and bluez alike. | `services/Audio.qml` |
+| 🐛 Upstream fix | Bluetooth volume | Retains the `wpctl` workaround for Quickshell's missing route-volume writes when `volumeStep` is absent; underlying fix #808 is still open. | `services/Audio.qml` |
 | ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work — idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
 | ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
 
@@ -59,16 +72,31 @@ command — then starts the shell. Done.
 rice-update
 ```
 
-That's the whole update. It runs a full system update (`yay -Syu`, so Caelestia and
-quickshell move together), auto-saves my changes, rebases them onto the new version,
-**test-loads it before switching**, restarts — and if anything ever goes wrong it rolls
-back, falling back to the plain system shell so the desktop is never left dead.
+This saves local source edits, updates packages (`yay -Syu` / `paru -Syu`), fetches
+`origin/mine` and `upstream/main`, and merges them in a temporary worktree.
+It builds a complete release, test-loads it with private state, and then switches
+the active configuration. Merge/build/load failures leave the running release
+selected. A failed launch restores the previous selection. GitHub sync uses a
+normal push and reports failure instead of silently force-pushing history.
 
-Just want to sync the shell without a system update? `rice-update --skip-system`.
+- `rice-update --skip-system`: build/sync without upgrading system packages.
+- `rice-update --rollback`: select and start the previous shell **and plugin**.
+- `rice-update --no-push`: update locally without publishing commits.
+- `rice-update --no-restart`: install for the next login; explicitly skip graphical
+  validation and restart (useful from a TTY).
 
-> Note: `rice-update` only syncs the **shell repo**. The `personal/config` files are
-> deployed by `install.sh` (run once by `bootstrap.sh`); edit a live file and mirror the
-> change back into `personal/config/` so it stays tracked.
+Building requires `base-devel`, `cmake`, `ninja`, `python`, `qt6-shadertools` and
+the runtime dependencies installed by bootstrap. Every update rebuilds against
+the current Qt installation, including when no Git commit changed. Quickshell
+itself must also be rebuilt if a Qt upgrade breaks its private ABI. A previous
+release cannot undo a system package/Qt upgrade.
+
+Edit shell source in `~/.local/share/my-caelestia/source`, then run `rice-update`.
+Runtime releases are generated snapshots. Keep personal configuration in
+`source/personal/config/`; installed symlinks continue to refer to those files.
+On migration, the old checkout is retained as `caelestia.before-managed-*` next
+to the active configuration. Builds and previous releases are retained for
+inspection/rollback; they are not automatically pruned.
 
 ## What I changed vs upstream
 
@@ -124,8 +152,9 @@ Just want to sync the shell without a system update? `rice-update --skip-system`
 | Path | What it is |
 |---|---|
 | `bootstrap.sh` | One-command fresh-machine installer (packages → fork → config). |
+| `manage.py` | Builds and activates matched QML/plugin releases; preserves the previous release. |
 | `install.sh` | Symlinks `personal/config/` into `~/.config` and installs the `rice-update` command. |
-| `update.sh` | The `rice-update` command — system update + rebase onto upstream + safe test-load/rollback. |
+| `update.sh` | The `rice-update` command — delegates to `manage.py` for merge/build/test/activation/rollback. |
 | `config/caelestia/shell.json`, `cli.json` | Shell (QML) and CLI config: bar, idle/suspend, wallpaper dir, post-hook. |
 | `config/caelestia/we-sync.sh`, `wallpaper-posthook.sh`, `we-restore.sh` | Wallpaper Engine integration (sync previews, switch on selection, restore on login/monitor change). |
 | `config/hypr/hyprland.lua` + `hypr/hyprland/*.lua` | Full Hyprland Lua config (entry point + all modules). |
@@ -140,9 +169,12 @@ seeded from the shipped `scheme/default.lua` on first launch) and the empty
 
 ## How this fork works
 
-`quickshell` loads `~/.config/quickshell/caelestia` in preference to the system package at
-`/etc/xdg/quickshell/caelestia`. So this repo, cloned to that path, **is** the running shell —
-which means the `caelestia-shell` package can update freely without ever overwriting my changes.
+`quickshell` loads the active release selected by
+`~/.config/quickshell/caelestia`. That release embeds its own QML import and helper
+paths, so its matching C++ plugin loads even when launched through the normal
+Caelestia CLI. Updating a system package does not overwrite these user-local
+files. The source repository and compiled releases are separate; activation
+switches the entire release rather than modifying files in a running shell.
 
 ## Credits
 

@@ -10,23 +10,17 @@ echo "$NOW" > "$STAMP"
 sleep 1.5
 [ "$(cat "$STAMP" 2>/dev/null)" = "$NOW" ] || exit 0
 
-caelestia shell -k 2>/dev/null || pkill -f "qs -c caelestia" 2>/dev/null
-
-# Wait until the old instance is really gone before starting the new one. With
-# a fixed 0.5s sleep, `caelestia shell -d` can race the dying instance's
-# leftover lock/socket, conclude a shell is already running, and start nothing
-# (this left the session without a shell after boot-time monitor events).
-for _ in $(seq 1 20); do
-    pgrep -f "qs -c caelestia" >/dev/null || break
-    sleep 0.25
+# Select by configuration, including managed releases launched with qs -p.
+qs -c caelestia kill 2>/dev/null || true
+for _ in $(seq 1 40); do
+    qs -c caelestia ipc show >/dev/null 2>&1 || break
+    sleep 0.2
 done
-pkill -9 -f "qs -c caelestia" 2>/dev/null
-sleep 0.2
+if qs -c caelestia ipc show >/dev/null 2>&1; then
+    echo "Previous shell has not exited; skipping duplicate launch" >&2
+    exit 1
+fi
 caelestia shell -d
-
-# Verify it actually came up; one retry covers a lost start race.
-sleep 2
-pgrep -f "qs -c caelestia" >/dev/null || caelestia shell -d
 
 # Re-extend the Wallpaper Engine wallpaper onto the current set of outputs. The
 # wallpaper.postHook only fires when the wallpaper *changes*, not when a monitor

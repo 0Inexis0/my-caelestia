@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Caelestia
 import Caelestia.Config
+import Caelestia.I18n
 import Caelestia.Services
 
 Singleton {
@@ -30,11 +31,10 @@ Singleton {
     readonly property alias cava: cava
     readonly property alias beatTracker: beatTracker
 
-    // NOTE: writing node.audio.volume/muted does not propagate for route-owned
-    // sinks (e.g. Bluetooth) in this Quickshell build — the gain lives on the
-    // device route, which the node-level setter never touches, so the slider
-    // appears to do nothing. We drive volume/mute via wpctl (which writes the
-    // route) instead. This works identically for ALSA and bluez nodes.
+    // Work around Quickshell skipping route volume writes when volumeStep is
+    // absent (notably on Bluetooth sinks). Keep until the underlying fix lands:
+    // https://github.com/quickshell-mirror/quickshell/issues/807
+    // https://github.com/quickshell-mirror/quickshell/pull/808
     function setVolume(newVolume: real): void {
         if (sink?.ready && sink?.audio) {
             const v = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
@@ -105,9 +105,9 @@ Singleton {
 
     function getStreamName(stream: PwNode): string {
         if (!stream)
-            return qsTr("Unknown");
+            return Tr.trCtx("Unknown", "unknown audio stream");
         // Try application name first, then description, then name
-        return stream.properties["application.name"] || stream.description || stream.name || qsTr("Unknown Application");
+        return stream.properties["application.name"] || stream.description || stream.name || Tr.trCtx("Unknown application", "unknown application audio stream");
     }
 
     function refreshNodes(): void {
@@ -135,10 +135,10 @@ Singleton {
         if (!sink?.ready)
             return;
 
-        const newSinkName = sink.description || sink.name || qsTr("Unknown Device");
+        const newSinkName = sink.description || sink.name || Tr.trCtx("Unknown device", "unknown audio device");
 
         if (previousSinkName && previousSinkName !== newSinkName && GlobalConfig.utilities.toasts.audioOutputChanged)
-            Toaster.toast(qsTr("Audio output changed"), qsTr("Now using: %1").arg(newSinkName), "volume_up");
+            Toaster.toast(Tr.tr("Audio output changed"), Tr.tr("Now using: %1").arg(newSinkName), "volume_up");
 
         previousSinkName = newSinkName;
     }
@@ -147,10 +147,10 @@ Singleton {
         if (!source?.ready)
             return;
 
-        const newSourceName = source.description || source.name || qsTr("Unknown Device");
+        const newSourceName = source.description || source.name || Tr.trCtx("Unknown device", "unknown audio device");
 
         if (previousSourceName && previousSourceName !== newSourceName && GlobalConfig.utilities.toasts.audioInputChanged)
-            Toaster.toast(qsTr("Audio input changed"), qsTr("Now using: %1").arg(newSourceName), "mic");
+            Toaster.toast(Tr.tr("Audio input changed"), Tr.tr("Now using: %1").arg(newSourceName), "mic");
 
         previousSourceName = newSourceName;
     }
@@ -159,8 +159,8 @@ Singleton {
     // lazily-loaded singleton is created, so onValuesChanged would never fire.
     Component.onCompleted: {
         refreshNodes();
-        previousSinkName = sink?.description || sink?.name || qsTr("Unknown Device");
-        previousSourceName = source?.description || source?.name || qsTr("Unknown Device");
+        previousSinkName = sink?.description || sink?.name || Tr.trCtx("Unknown device", "unknown audio device");
+        previousSourceName = source?.description || source?.name || Tr.trCtx("Unknown device", "unknown audio device");
     }
 
     Connections {

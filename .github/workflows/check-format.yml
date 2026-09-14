@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
+      - mine
   pull_request:
 
 jobs:
   check-qml:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
       - uses: actions/checkout@v6
@@ -27,7 +28,7 @@ jobs:
   check-cpp:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
       - uses: actions/checkout@v6

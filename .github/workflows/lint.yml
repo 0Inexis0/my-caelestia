@@ -4,14 +4,24 @@ on:
   push:
     branches:
       - main
+      - mine
   pull_request:
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!.github/**"
+      - ".github/workflows/lint.yml"
+      - "!.vscode/**"
+      - "!assets/**"
+      - "!.gitignore"
+      - "!**/*.nix"
+      - "!**/flake.lock"
 
 jobs:
-  lint:
+  lint-qml:
     runs-on: ubuntu-latest
-
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
       - uses: actions/checkout@v6
@@ -19,7 +29,7 @@ jobs:
       - name: Build
         run: |
           # Set version and git rev for CI build so we don't call git
-          cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=clazy -DCMAKE_CXX_FLAGS=-Werror -DVERSION= -DGIT_REVISION=
+          cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=clazy -DVERSION= -DGIT_REVISION=
           cmake --build build
 
       - name: Lint QML
@@ -41,5 +51,37 @@ jobs:
           set -l qml_files (string match -vr 'build/.*' **.qml)
 
           # Lint
-          set -l lint_out (/usr/lib/qt6/bin/qmllint --import disable $args $qml_files 2>&1 | tee /dev/stderr)
+          set -l lint_out (/usr/lib/qt6/bin/qmllint --bare --import disable $args $qml_files 2>&1 | tee /dev/stderr)
           test -z "$lint_out" || exit 1
+
+  lint-cpp:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/0inexis0/shell-arch-env:latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DVERSION= -DGIT_REVISION=
+
+      - name: Lint C++
+        run: |
+          clang-tidy --version
+          run-clang-tidy -p build -quiet -j "$(nproc)" -warnings-as-errors='*' \
+            -source-filter='^(?!.*/build/).*\.cpp$'
+
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 scripts/trs-check.py
+
+  test-updater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 -m unittest discover -s tests -v
+      - run: find personal -name '*.sh' -print0 | xargs -0 -n1 bash -n

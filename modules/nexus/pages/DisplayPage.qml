@@ -4,14 +4,13 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Hyprland
 import Quickshell.Io
-import qs.components
+import Caelestia.Config
+import Caelestia.I18n
 import qs.modules.nexus.common
 import qs.modules.nexus.pages.display
 
 PageBase {
     id: root
-
-    title: qsTr("Display")
 
     // Sourced from `hyprctl monitors all` so DISABLED monitors are listed too
     // (the normal monitor list / Hypr.monitors omits disabled outputs, which
@@ -21,6 +20,8 @@ PageBase {
     function refresh(): void {
         refreshTimer.restart();
     }
+
+    title: Tr.tr("Display")
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -53,12 +54,12 @@ PageBase {
         }
 
         Connections {
-            target: Hyprland
-
             function onRawEvent(event: HyprlandEvent): void {
                 if (event.name.includes("monitor"))
                     root.refresh();
             }
+
+            target: Hyprland
         }
 
         Repeater {

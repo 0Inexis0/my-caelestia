@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Caelestia.Config
+import Caelestia.I18n
 import qs.components
 import qs.components.filedialog
 import qs.services
@@ -16,8 +17,8 @@ Item {
 
     // Lives here (not in Content) so it survives the chat closing while picking
     readonly property FileDialog imagePicker: FileDialog {
-        title: qsTr("Attach an image")
-        filterLabel: qsTr("Image files")
+        title: Tr.tr("Attach an image")
+        filterLabel: Tr.tr("Image files")
         filters: Images.validImageExtensions
         onAccepted: path => {
             Ollama.encodeAndAttach(path);
