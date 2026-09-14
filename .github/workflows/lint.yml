@@ -21,7 +21,7 @@ jobs:
   lint-qml:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/caelestia-dots/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
       - uses: actions/checkout@v6
@@ -57,7 +57,7 @@ jobs:
   lint-cpp:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/caelestia-dots/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
       - uses: actions/checkout@v6

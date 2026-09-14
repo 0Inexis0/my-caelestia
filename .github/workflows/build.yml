@@ -59,7 +59,7 @@ jobs:
     name: build-arch-${{ matrix.name }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/caelestia-dots/shell-arch-env:latest
+      image: ghcr.io/0inexis0/shell-arch-env:latest
 
     strategy:
       fail-fast: false
