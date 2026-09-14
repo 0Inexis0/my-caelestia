@@ -13,7 +13,9 @@
 #
 set -uo pipefail
 
-REPO="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/caelestia"
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}/my-caelestia"
+REPO="$DATA/source"
+LEGACY="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/caelestia"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 URL="https://github.com/0Inexis0/my-caelestia.git"
 UPSTREAM="https://github.com/caelestia-dots/shell.git"
@@ -66,10 +68,24 @@ have git || { c_err "❌ git is not installed (sudo pacman -S git)."; exit 1; }
 qs_is_real() { pacman -Qoq /usr/bin/qs 2>/dev/null | grep -qx quickshell-git; }
 base_ok() { have caelestia && have qs && qs_is_real && have Hyprland && [ -e /usr/lib/qt6/qml/Caelestia ]; }
 
-# Already got my fork AND a working base? Just update instead. -----------------
+# Use the current manager even when upgrading an older checkout.
 if [ -e "$REPO/.git" ] && base_ok; then
-    c_info "📦 my-caelestia is already installed — updating instead..."
-    exec "$REPO/personal/update.sh"
+    exec "$REPO/personal/update.sh" "$@"
+fi
+if [ -d "$LEGACY/.git" ] && base_ok; then
+    # Save legacy edits before cloning so migration cannot drop them.
+    if [ -n "$(git -C "$LEGACY" status --porcelain)" ]; then
+        git -C "$LEGACY" add -A && git -C "$LEGACY" commit -m "Save local changes before managed migration" || exit 1
+    fi
+    mkdir -p "$DATA"
+    git clone --no-hardlinks --branch mine "$LEGACY" "$REPO" || exit 1
+    git -C "$REPO" remote set-url origin "$URL" || exit 1
+    git -C "$REPO" fetch origin mine || exit 1
+    git -C "$REPO" merge --ff-only origin/mine || {
+        c_err "Local history diverged. Merge origin/mine in $REPO, then run its personal/update.sh."
+        exit 1
+    }
+    exec "$REPO/personal/update.sh" "$@"
 fi
 
 # Need an AUR helper ----------------------------------------------------------
@@ -158,6 +174,11 @@ else
     fi
 fi
 
+# Build tools are needed on existing installations too. Runtime libraries come
+# from caelestia-shell; install new upstream dependencies explicitly here.
+"$HELPER" -S --needed --noconfirm base-devel cmake ninja python qt6-shadertools qt6-m3shapes-git \
+    || { c_err "Build dependencies could not be installed."; exit 1; }
+
 # --- 2. selected extras (--needed = skips anything already installed) --------
 EXTRAS=()
 [ "$WANT_WE" = y ]   && EXTRAS+=(linux-wallpaperengine-git)
@@ -199,7 +220,8 @@ else
         c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-mine.bak"
     fi
     c_step "Installing my shell fork..."
-    git clone -q --branch mine "$URL" "$REPO"
+    mkdir -p "$DATA"
+    git clone -q --branch mine "$URL" "$REPO" || exit 1
 fi
 cd "$REPO"
 git remote add upstream "$UPSTREAM" 2>/dev/null || true
@@ -207,7 +229,7 @@ git fetch -q upstream --tags 2>/dev/null || true
 
 # --- 4. link my config + install the rice-update command ---------------------
 c_step "Linking my config + installing the 'rice-update' command..."
-"$REPO/personal/install.sh"
+"$REPO/personal/install.sh" || exit 1
 
 # --- 5. apply personal settings WITHOUT polluting the repo -------------------
 # Hyprland variables override file is untracked and auto-merged over variables.lua.
@@ -241,16 +263,8 @@ PY
     fi
 fi
 
-# --- 6. start it now if we're already in a graphical session -----------------
-if [ -n "${WAYLAND_DISPLAY:-}" ] && have qs; then
-    c_info "🔄 Starting the shell..."
-    qs -c caelestia kill >/dev/null 2>&1; sleep 1
-    ( setsid caelestia shell -d >/dev/null 2>&1 & )
-    c_ok "🎉 All done! Your full rice is installed and running."
-else
-    c_ok "🎉 All done! Your full rice is installed."
-    c_warn "   Log into a Hyprland session to see it (the shell autostarts there)."
-fi
-[ "$WANT_SDDM" = y ] && c_warn "   For the matching login screen, enable SDDM and select the 'caelestia' theme."
-echo
-c_ok "From now on, update anytime with:  rice-update"
+# --- 6. build and activate matching shell + plugin ----------------------------
+INSTALL_ARGS=()
+[ -n "${WAYLAND_DISPLAY:-}" ] || INSTALL_ARGS+=(--no-restart)
+python3 "$REPO/personal/manage.py" install "${INSTALL_ARGS[@]}" || exit 1
+c_ok "Installed matching shell and plugin. Update with rice-update; roll back with rice-update --rollback."

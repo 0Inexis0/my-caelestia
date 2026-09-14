@@ -29,8 +29,21 @@
 - Isolated ten-second Wayland load with the freshly built plugin: reached `Configuration Loaded` and remained running until timeout.
 - Smoke-test config/state/cache/runtime were temporary; session D-Bus and Hyprland access were disabled. Expected service-unavailable warnings occurred. This is a load test, not an end-to-end Bluetooth/display/Ollama hardware test.
 
-## Deployment decision still required
+## Managed deployment
 
-The installed stable plugin is 2.4.0 and has no Caelestia.I18n module. Latest upstream QML cannot run on that plugin. The existing updater selects installed release tags, does not build the plugin, does not fetch origin/mine, and can exit as already current without publishing anything. It also rebases and force-pushes mine, which is unsuitable as-is for maintaining this reviewed merge history.
+The selected strategy is latest upstream with a matching local plugin build.
+`personal/manage.py` installs each QML/plugin pair into a separate user-local
+release. The live configuration is switched only after a successful build and
+isolated load check; failed starts restore the previous selection. Package-owned
+plugins are untouched. The source checkout now lives under
+`$XDG_DATA_HOME/my-caelestia/source` (default `~/.local/share`).
 
-Choose either a matching-plugin build/install/update workflow for latest upstream, or keep a package-compatible mine and maintain this integration on a separate development branch. Do not merge this branch into the bootstrapped mine until that choice is implemented and tested. No system plugin installation, live shell replacement, or hardware setting change was performed.
+The updater merges origin/mine and upstream/main in a temporary worktree, preserves
+history, and pushes normally after activation. It no longer selects release tags,
+rebases, or force-pushes. Source edits are committed before merging; failed commits
+are errors. An explicit --no-restart supports installation before graphical login.
+A rollback selects both previous QML and plugin, but cannot undo a Qt/system upgrade.
+
+Regression tests cover Git conflict handling, retained local history, failed saves,
+failed builds/launches, atomic selection, and legacy linked-worktree migration.
+GitHub CI uses a fork-owned Arch image because the upstream image denied access.

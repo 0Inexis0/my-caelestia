@@ -78,3 +78,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: python3 scripts/trs-check.py
+
+  test-updater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 -m unittest discover -s tests -v
+      - run: find personal -name '*.sh' -exec bash -n {} +
