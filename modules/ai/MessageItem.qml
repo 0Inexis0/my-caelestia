@@ -22,13 +22,13 @@ Item {
     StyledRect {
         id: bubble
 
+        readonly property int padding: Tokens.padding.medium
+
         anchors.right: root.isUser ? parent.right : undefined
         anchors.left: root.isUser ? undefined : parent.left
 
         radius: Tokens.rounding.large
         color: root.isUser ? Colours.palette.m3primaryContainer : Colours.palette.m3surfaceContainerHigh
-
-        readonly property int padding: Tokens.padding.medium
 
         implicitWidth: Math.min(root.maxBubbleWidth, col.implicitWidth + padding * 2)
         implicitHeight: col.implicitHeight + padding * 2
@@ -49,6 +49,8 @@ Item {
                     model: root.images
 
                     StyledClippingRect {
+                        id: attachment
+
                         required property string modelData
 
                         implicitWidth: 140
@@ -57,7 +59,7 @@ Item {
 
                         Image {
                             anchors.fill: parent
-                            source: "data:image/png;base64," + modelData
+                            source: "data:image/png;base64," + attachment.modelData
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                         }

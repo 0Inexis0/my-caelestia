@@ -199,7 +199,7 @@ else
         c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-mine.bak"
     fi
     c_step "Installing my shell fork..."
-    git clone -q "$URL" "$REPO"
+    git clone -q --branch mine "$URL" "$REPO"
 fi
 cd "$REPO"
 git remote add upstream "$UPSTREAM" 2>/dev/null || true

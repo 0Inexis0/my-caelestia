@@ -15,6 +15,16 @@ upstream updates without losing my changes.
 
 </div>
 
+## Upstream compatibility (2026-09-14)
+
+This integration branch includes upstream `main` through
+[`f435b2c1`](https://github.com/caelestia-dots/shell/commit/f435b2c1799c545c209a4ab15c9389070958bc86).
+It requires the matching C++ plugin, including `Caelestia.I18n`; the stable
+`caelestia-shell` 2.4.0 package alone is insufficient. Do not deploy this branch
+with the existing bootstrap/update commands until the plugin installation
+strategy has been updated. See [the integration review](docs/upstream-review-2026-09-14.md)
+for verification, retained customizations, and remaining installation work.
+
 ## Differences from upstream at a glance
 
 | Type | Change | Summary | Where |
@@ -24,7 +34,7 @@ upstream updates without losing my changes.
 | ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
 | ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + rebase onto upstream with test-load and automatic rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
 | ✨ Feature | Discord music rich presence | Optional in `bootstrap.sh`: installs `playerctl` + `music-discord-rpc`, reads "now playing" over MPRIS from whichever browser you name (default Brave) — works for Apple Music, Spotify, YT Music, anything playing as a tab. | `personal/bootstrap.sh` |
-| 🐛 Upstream fix | Bluetooth volume | Upstream's bar volume slider / scroll / mute did nothing on Bluetooth outputs — volume lives on the PipeWire device *route*, which the node-level setter never touches. Now driven via `wpctl`, works for ALSA and bluez alike. | `services/Audio.qml` |
+| 🐛 Upstream fix | Bluetooth volume | Retains the `wpctl` workaround for Quickshell's missing route-volume writes when `volumeStep` is absent; underlying fix #808 is still open. | `services/Audio.qml` |
 | ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work — idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
 | ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
 

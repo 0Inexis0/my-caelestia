@@ -1,13 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Caelestia.Config
+import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
-import qs.utils
 
 Item {
     id: root
@@ -24,14 +23,14 @@ Item {
     // Common context-length presets (tokens)
     readonly property var ctxPresets: [2048, 4096, 8192, 16384, 32768, 65536, 131072]
 
+    function fmtCtx(n: int): string {
+        return n >= 1024 ? `${Math.round(n / 1024)}K` : `${n}`;
+    }
+
     implicitWidth: 660
     implicitHeight: Math.min(root.maxHeight, header.implicitHeight + listWrapper.implicitHeight + inputWrapper.implicitHeight + padding * 2 + Tokens.spacing.small * 2)
 
     Component.onCompleted: Ollama.reloadModels()
-
-    function fmtCtx(n: int): string {
-        return n >= 1024 ? `${Math.round(n / 1024)}K` : `${n}`;
-    }
 
     Connections {
         function onAiChanged(): void {
@@ -60,7 +59,7 @@ Item {
         }
 
         StyledText {
-            text: qsTr("Assistant")
+            text: Tr.tr("Assistant")
             font: Tokens.font.title.small
             color: Colours.palette.m3onSurface
         }
@@ -89,7 +88,7 @@ Item {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: Ollama.currentModel || qsTr("No models")
+                    text: Ollama.currentModel || Tr.tr("No models")
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
                     elide: Text.ElideRight
@@ -159,7 +158,7 @@ Item {
         StyledText {
             anchors.centerIn: parent
             visible: list.count === 0 && !Ollama.responding && !Ollama.errorMsg
-            text: Ollama.available ? qsTr("Ask me anything") : qsTr("Waiting for Ollama…")
+            text: Ollama.available ? Tr.tr("Ask me anything") : Tr.tr("Waiting for Ollama…")
             color: Colours.palette.m3outline
             font: Tokens.font.body.medium
         }
@@ -177,6 +176,7 @@ Item {
 
             delegate: MessageItem {
                 required property var model
+
                 width: ListView.view.width
                 role: model.role
                 content: model.content
@@ -214,7 +214,7 @@ Item {
                             }
 
                             StyledText {
-                                text: qsTr("Reasoning…")
+                                text: Tr.tr("Reasoning…")
                                 font: Tokens.font.label.small
                                 color: Colours.palette.m3onSurfaceVariant
                             }
@@ -256,13 +256,15 @@ Item {
             onCountChanged: positionViewAtEnd()
 
             Connections {
-                target: Ollama
                 function onStreamContentChanged(): void {
                     list.positionViewAtEnd();
                 }
+
                 function onStreamThinkingChanged(): void {
                     list.positionViewAtEnd();
                 }
+
+                target: Ollama
             }
         }
     }
@@ -370,7 +372,7 @@ Item {
                 topPadding: Tokens.padding.medium
                 bottomPadding: Tokens.padding.medium
 
-                placeholderText: qsTr("Message %1…").arg(Ollama.currentModel || "Ollama")
+                placeholderText: Tr.tr("Message %1…").arg(Ollama.currentModel || "Ollama")
                 enabled: Ollama.available
 
                 onAccepted: {
@@ -533,7 +535,7 @@ Item {
             spacing: Tokens.spacing.medium
 
             StyledText {
-                text: qsTr("Settings")
+                text: Tr.tr("Settings")
                 font: Tokens.font.title.small
                 color: Colours.palette.m3onSurface
             }
@@ -544,7 +546,7 @@ Item {
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
-                    text: qsTr("Context length: %1 tokens").arg(root.fmtCtx(Ollama.numCtx))
+                    text: Tr.tr("Context length: %1 tokens").arg(root.fmtCtx(Ollama.numCtx))
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
                 }
@@ -585,7 +587,7 @@ Item {
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
-                    text: qsTr("Temperature: %1").arg(Ollama.temperature.toFixed(2))
+                    text: Tr.tr("Temperature: %1").arg(Ollama.temperature.toFixed(2))
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
                 }
@@ -621,7 +623,7 @@ Item {
         StyledText {
             anchors.centerIn: parent
             visible: Ollama.chats.length === 0
-            text: qsTr("No chats yet")
+            text: Tr.tr("No chats yet")
             color: Colours.palette.m3outline
             font: Tokens.font.body.small
         }
@@ -657,7 +659,7 @@ Item {
                     anchors.leftMargin: Tokens.padding.small
                     anchors.rightMargin: Tokens.spacing.small
 
-                    text: histItem.modelData.title || qsTr("New chat")
+                    text: histItem.modelData.title || Tr.tr("New chat")
                     font: Tokens.font.label.medium
                     color: histItem.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                     elide: Text.ElideRight

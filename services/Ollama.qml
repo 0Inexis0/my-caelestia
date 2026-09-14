@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia.I18n
 import qs.utils
 
 // Talks to a local (or remote) Ollama instance.
@@ -64,7 +65,7 @@ Singleton {
         }
         const chat = {
             id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            title: qsTr("New chat"),
+            title: Tr.tr("New chat"),
             model: currentModel,
             messages: [],
             updatedAt: Date.now()
@@ -127,7 +128,7 @@ Singleton {
                 return;
             c = {
                 id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                title: qsTr("New chat"),
+                title: Tr.tr("New chat"),
                 model: currentModel,
                 messages: [],
                 updatedAt: Date.now()
@@ -151,7 +152,7 @@ Singleton {
         c.updatedAt = Date.now();
         const firstUser = arr.find(m => m.role === "user");
         if (firstUser)
-            c.title = firstUser.content.slice(0, 50).trim() || qsTr("New chat");
+            c.title = firstUser.content.slice(0, 50).trim() || Tr.tr("New chat");
         chats = chats.slice().sort((a, b) => b.updatedAt - a.updatedAt);
         persist();
     }
@@ -244,6 +245,11 @@ Singleton {
         streamThinking = "";
     }
 
+    function encodeAndAttach(path: string): void {
+        encoder.pendingPath = path.replace(/^file:\/\//, "");
+        encoder.running = true;
+    }
+
     Process {
         id: getModels
 
@@ -262,7 +268,7 @@ Singleton {
                 }
             }
         }
-        onExited: code => {
+        onExited: code => { // qmllint disable signal-handler-parameters
             if (code !== 0)
                 root.available = false;
         }
@@ -297,9 +303,9 @@ Singleton {
                     root.errorMsg = text.trim();
             }
         }
-        onExited: code => {
+        onExited: code => { // qmllint disable signal-handler-parameters
             if (code !== 0 && !root.errorMsg)
-                root.errorMsg = qsTr("Could not reach Ollama at %1").arg(root.endpoint);
+                root.errorMsg = Tr.tr("Could not reach Ollama at %1").arg(root.endpoint);
             root.finalise();
         }
     }
@@ -318,11 +324,6 @@ Singleton {
                     root.attachImage(b64);
             }
         }
-    }
-
-    function encodeAndAttach(path: string): void {
-        encoder.pendingPath = path.replace(/^file:\/\//, "");
-        encoder.running = true;
     }
 
     FileView {
