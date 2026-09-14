@@ -84,4 +84,4 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: python3 -m unittest discover -s tests -v
-      - run: find personal -name '*.sh' -exec bash -n {} +
+      - run: find personal -name '*.sh' -print0 | xargs -0 -n1 bash -n

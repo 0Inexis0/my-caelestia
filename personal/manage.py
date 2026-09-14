@@ -71,6 +71,45 @@ def build(source, data):
         raise
 
 
+
+def add_feature_probe(shell):
+    """Instantiate lazy fork UI on a transparent, input-empty test surface."""
+    text = shell.read_text()
+    text = text.replace('ShellRoot {', """import qs.components as ProbeComponents
+import qs.modules.ai as ProbeAi
+import qs.modules.nexus as ProbeNexus
+import qs.modules.nexus.pages as ProbePages
+import qs.modules.nexus.pages.display as ProbeDisplay
+
+ShellRoot {""", 1)
+    at = text.rfind('}')
+    text = text[:at] + """
+    PanelWindow {
+        color: "transparent"
+        mask: Region {}
+        implicitWidth: 1
+        implicitHeight: 1
+        Loader {
+            opacity: 0
+            active: false
+            Component.onCompleted: Qt.callLater(() => active = true)
+            sourceComponent: Item {
+                Component.onCompleted: console.info("Fork feature probe loaded")
+        ProbeComponents.ScreenState { id: probeState; modelData: Quickshell.screens[0]; ai: true }
+        ProbeNexus.NexusState { id: probeNexus; screen: Quickshell.screens[0] }
+        ProbeAi.Content { screenState: probeState; maxHeight: 740 }
+        ProbeAi.MessageItem { role: "user"; content: "Load test"; images: [] }
+        ProbePages.DisplayPage { nState: probeNexus; width: 800 }
+        ProbeDisplay.MonitorSection {
+            monitorData: ({name: "TEST-1", width: 1920, height: 1080, refreshRate: 60,
+                           scale: 1, availableModes: ["1920x1080@60Hz"]})
+        }
+            }
+        }
+    }
+""" + text[at:]
+    shell.write_text(text)
+
 def smoke(release, log):
     """Use a distinct config/runtime and private state; do not claim session services."""
     with tempfile.TemporaryDirectory(prefix='caelestia-smoke-') as directory:
@@ -79,6 +118,7 @@ def smoke(release, log):
         runtime.mkdir(mode=0o700)
         shell = scratch / 'shell'
         shutil.copytree(release / 'shell', shell, symlinks=True)
+        add_feature_probe(shell / 'shell.qml')
         env = os.environ.copy()
         display = env.get('WAYLAND_DISPLAY', '')
         if not display:
@@ -98,9 +138,10 @@ def smoke(release, log):
                 loaded_at = None
                 while time.monotonic() < deadline:
                     text = log.read_text()
-                    if process.poll() is not None or 'Failed to load configuration' in text:
+                    if process.poll() is not None or any(error in text for error in (
+                            'Failed to load configuration', 'ReferenceError:', 'TypeError:')):
                         raise RuntimeError(f'Shell load failed; see {log}')
-                    if 'Configuration Loaded' in text:
+                    if 'Configuration Loaded' in text and 'Fork feature probe loaded' in text:
                         loaded_at = loaded_at or time.monotonic()
                         if time.monotonic() - loaded_at >= 2:
                             return

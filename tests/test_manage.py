@@ -98,7 +98,7 @@ class GitTests(unittest.TestCase):
         self.commit('upstream.txt', 'upstream')
         upstream = m.git(self.source, 'rev-parse', 'HEAD')
         m.git(self.source, 'update-ref', 'refs/remotes/upstream/main', upstream)
-        m.git(self.source, 'checkout', '-q', 'mine')
+        m.git(self.source, 'checkout', '-q', '-B', 'mine', self.base)
         self.commit('local.txt', 'local')
         local = m.git(self.source, 'rev-parse', 'HEAD')
         with m.candidate(self.source, self.data, True) as path:
