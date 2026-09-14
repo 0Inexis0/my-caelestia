@@ -5,7 +5,7 @@
 - Fork: `0Inexis0/my-caelestia`, custom branch `mine` at `3aa77ae6`.
 - Upstream: `caelestia-dots/shell`, `main` at `f435b2c1799c545c209a4ab15c9389070958bc86`.
 - 52 upstream-only commits integrated; 48 fork-only commits preserved through a merge.
-- The live checkout was clean and remains unchanged. Integration was performed in a separate worktree.
+- The initial live checkout was clean. Integration was developed in a separate worktree; managed deployment retains the legacy checkout as a backup.
 
 ## Customization audit
 
@@ -17,7 +17,7 @@
 | Wallpaper Engine / monitor scripts | Fork-specific integrations remain necessary for this setup; no equivalent replacement is present in shell upstream. Retain them. Separate CLI, dotfiles and renderer repositories were not exhaustively audited. |
 | Suspend / personal configuration | Retain personal choices. Shipped workspace keys remain valid; the removed perMonitorWorkspaces option is not present in the shipped shell.json. |
 | README | Keep fork documentation, add current compatibility constraints instead of restoring the full upstream README. |
-| GitHub CI | Enable build, lint and format on mine; use the existing upstream Arch image rather than assuming a fork image exists. Add translation validation; ensure local build types take precedence over installed Qt module defaults. |
+| GitHub CI | Enable build, lint and format on mine; build and use a fork-owned Arch image because the upstream registry denied access. Add translation validation; ensure local build types take precedence over installed Qt module defaults. |
 | Bootstrap | Explicitly clone mine; installation no longer depends on the repository default branch. |
 
 ## Verification
@@ -44,6 +44,8 @@ rebases, or force-pushes. Source edits are committed before merging; failed comm
 are errors. An explicit --no-restart supports installation before graphical login.
 A rollback selects both previous QML and plugin, but cannot undo a Qt/system upgrade.
 
-Regression tests cover Git conflict handling, retained local history, failed saves,
+All ten GitHub checks passed on the final code revision, including GCC, Clazy, Nix, QML/C++ lint, formatting, translations and updater tests.
+
+Nine updater regression tests cover Git conflict handling, retained local history, failed saves,
 failed builds/launches, atomic selection, and legacy linked-worktree migration.
 GitHub CI uses a fork-owned Arch image because the upstream image denied access.
