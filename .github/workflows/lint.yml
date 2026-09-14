@@ -81,7 +81,9 @@ jobs:
 
   test-updater:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/0inexis0/shell-arch-env:latest
     steps:
       - uses: actions/checkout@v6
-      - run: python3 -m unittest discover -s tests -v
+      - run: CAELESTIA_QS_TESTS=1 python3 -m unittest discover -s tests -v
       - run: find personal -name '*.sh' -print0 | xargs -0 -n1 bash -n

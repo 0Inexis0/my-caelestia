@@ -5,6 +5,8 @@ import contextlib
 import fcntl
 import json
 import os
+import select
+import signal
 from pathlib import Path
 import shutil
 import subprocess
@@ -157,7 +159,7 @@ def smoke(release, log):
 
 
 def instances(config):
-    output = run('qs', '-p', config, 'list', '--json', capture=True).strip()
+    output = run('qs', '-p', config, 'list', '--json', capture=True, timeout=5).strip()
     # Quickshell emits this human-readable message even when --json is set.
     if not output or output.startswith('No running instances'):
         return []
@@ -170,25 +172,65 @@ def instances(config):
         raise RuntimeError(f'Unexpected Quickshell instance output: {output}') from error
 
 
+def wait_for_exit(handles, timeout):
+    poller = select.poll()
+    pending = set(handles)
+    for fd in pending:
+        poller.register(fd, select.POLLIN)
+    deadline = time.monotonic() + timeout
+    while pending:
+        remaining = max(0, int((deadline - time.monotonic()) * 1000))
+        for fd, _ in poller.poll(remaining):
+            pending.discard(fd)
+            poller.unregister(fd)
+        if time.monotonic() >= deadline:
+            break
+    return pending
+
+
 def stop(config):
     if not config or not (config / 'shell.qml').exists():
         return
-    if not instances(config):
+    running = instances(config)
+    if not running:
         return
-    run('qs', '-p', config, 'kill')
-    deadline = time.monotonic() + 8
-    while instances(config):
-        if time.monotonic() >= deadline:
+    # Keep handles to these exact processes; never kill by a broad name pattern
+    # or signal a PID that could have been reused while waiting for shutdown.
+    with contextlib.ExitStack() as stack:
+        handles = []
+        for instance in running:
+            try:
+                fd = os.pidfd_open(int(instance['pid']))
+            except ProcessLookupError:
+                continue
+            stack.callback(os.close, fd)
+            handles.append(fd)
+        try:
+            run('qs', '-p', config, 'kill', timeout=5)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            pass  # A stalled IPC loop still needs a bounded shutdown.
+        pending = wait_for_exit(handles, 3)
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            for fd in pending:
+                with contextlib.suppress(ProcessLookupError):
+                    signal.pidfd_send_signal(fd, sig)
+            pending = wait_for_exit(pending, 1)
+        if pending or instances(config):
             raise RuntimeError('Previous shell did not exit; refusing to start a duplicate')
-        time.sleep(0.2)
 
 
 def start(config):
-    run('qs', '-p', config, '-n', '-d')
+    # --no-duplicate combined with --daemonize can leave the launcher waiting
+    # forever when an exiting instance still holds its lock. Check the instance
+    # explicitly, then launch without that combination.
+    if instances(config):
+        run('qs', '-p', config, 'ipc', 'show', capture=True, timeout=5)
+        return
+    run('qs', '-p', config, '-d', timeout=15)
     time.sleep(2)
     if not instances(config):
         raise RuntimeError('New shell exited after launch')
-    run('qs', '-p', config, 'ipc', 'show', capture=True)
+    run('qs', '-p', config, 'ipc', 'show', capture=True, timeout=5)
 
 
 def activate(release, config, data, restart=True):
@@ -198,7 +240,7 @@ def activate(release, config, data, restart=True):
     switched = False
     try:
         if restart:
-            stop(previous)
+            stop(config)
         if config.exists() and not config.is_symlink():
             backup = config.with_name('caelestia.before-managed-' + str(time.time_ns()))
             config.rename(backup)
@@ -213,7 +255,7 @@ def activate(release, config, data, restart=True):
     except BaseException:
         if switched and restart:
             with contextlib.suppress(Exception):
-                stop(config.resolve())
+                stop(config)
         if backup and backup.exists():
             config.unlink(missing_ok=True)
             backup.rename(config)
@@ -304,7 +346,7 @@ def main():
             switched = False
             try:
                 if not args.no_restart:
-                    stop(current)
+                    stop(config)
                 atomic_link(old, config)
                 switched = True
                 if not args.no_restart:
@@ -313,7 +355,7 @@ def main():
                 if switched:
                     if not args.no_restart:
                         with contextlib.suppress(Exception):
-                            stop(old)
+                            stop(config)
                     atomic_link(current, config)
                 if not args.no_restart:
                     start(config)

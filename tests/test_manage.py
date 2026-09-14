@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import os
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
@@ -156,6 +158,42 @@ class GitTests(unittest.TestCase):
         self.assertEqual(m.git(linked, 'rev-parse', 'HEAD'), self.base)
         self.assertTrue((self.data / 'previous/.git').is_dir())
 
+
+
+@unittest.skipUnless(os.environ.get('CAELESTIA_QS_TESTS') == '1' and shutil.which('qs'),
+                     'opt-in Quickshell runtime test')
+class QuickshellTransactionTests(unittest.TestCase):
+    def test_activation_and_rollback_restart_the_config_alias(self):
+        with tempfile.TemporaryDirectory(prefix='caelestia-transaction-') as directory:
+            root = Path(directory)
+            runtime = root / 'runtime'
+            runtime.mkdir(mode=0o700)
+            data = root / 'data/my-caelestia'
+            config = root / 'config/quickshell/caelestia'
+            config.parent.mkdir(parents=True)
+            old, new = data / 'old', data / 'new'
+            for release in (old, new):
+                (release / 'shell').mkdir(parents=True)
+                (release / 'shell/shell.qml').write_text(
+                    'import Quickshell\nimport Quickshell.Io\n'
+                    'ShellRoot { IpcHandler { target: "probe"; '
+                    'function value(): string { return "' + release.name + '"; } } }\n')
+            config.symlink_to(old / 'shell')
+            env = dict(QT_QPA_PLATFORM='offscreen', WAYLAND_DISPLAY='',
+                       XDG_RUNTIME_DIR=str(runtime), XDG_CONFIG_HOME=str(root / 'config'),
+                       XDG_DATA_HOME=str(root / 'data'), XDG_CACHE_HOME=str(root / 'cache'),
+                       XDG_STATE_HOME=str(root / 'state'))
+            with patch.dict(os.environ, env):
+                try:
+                    m.start(config)
+                    m.activate(new, config, data)
+                    self.assertEqual(m.run('qs', '-p', config, 'ipc', 'call', 'probe', 'value', capture=True).strip(), 'new')
+                    with patch.object(m.sys, 'argv', ['manage.py', 'rollback']):
+                        m.main()
+                    self.assertEqual(m.run('qs', '-p', config, 'ipc', 'call', 'probe', 'value', capture=True).strip(), 'old')
+                    self.assertEqual(config.resolve(), old / 'shell')
+                finally:
+                    m.stop(config)
 
 if __name__ == '__main__':
     unittest.main()

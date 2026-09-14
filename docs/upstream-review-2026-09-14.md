@@ -46,8 +46,10 @@ A rollback selects both previous QML and plugin, but cannot undo a Qt/system upg
 
 All ten GitHub checks passed on the final code revision, including GCC, Clazy, Nix, QML/C++ lint, formatting, translations and updater tests.
 
-Twelve updater regression tests cover Git conflict handling, retained local history, failed saves,
+Thirteen updater regression tests cover Git conflict handling, retained local history, failed saves,
 failed builds/launches, atomic selection, and legacy linked-worktree migration.
 GitHub CI uses a fork-owned Arch image because the upstream image denied access.
 
 The first real activation exposed Quickshell emitting a plain-text empty-list message despite --json. The manager now handles that output explicitly, rejects unknown output, and restores the old shell even if stopping it fails midway. Regression coverage includes these cases.
+
+A real headless Quickshell transaction test verifies activation and rollback through the stable configuration symlink. Process selection uses that alias, not the resolved release directory. Shutdown holds Linux pidfds and has bounded graceful/forced stages, avoiding stale PID reuse and indefinite waits in a stuck Quickshell shutdown. The runtime test is also enabled in the fork-owned CI container.
