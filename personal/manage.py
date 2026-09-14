@@ -157,7 +157,17 @@ def smoke(release, log):
 
 
 def instances(config):
-    return json.loads(run('qs', '-p', config, 'list', '--json', capture=True) or '[]')
+    output = run('qs', '-p', config, 'list', '--json', capture=True).strip()
+    # Quickshell emits this human-readable message even when --json is set.
+    if not output or output.startswith('No running instances'):
+        return []
+    try:
+        result = json.loads(output)
+        if not isinstance(result, list):
+            raise ValueError('expected an instance list')
+        return result
+    except ValueError as error:
+        raise RuntimeError(f'Unexpected Quickshell instance output: {output}') from error
 
 
 def stop(config):
@@ -185,9 +195,10 @@ def activate(release, config, data, restart=True):
     """Switch QML and plugin together; restore the old selection if launch fails."""
     previous = config.resolve() if config.exists() else None
     backup = None
-    if restart:
-        stop(previous)
+    switched = False
     try:
+        if restart:
+            stop(previous)
         if config.exists() and not config.is_symlink():
             backup = config.with_name('caelestia.before-managed-' + str(time.time_ns()))
             config.rename(backup)
@@ -196,21 +207,23 @@ def activate(release, config, data, restart=True):
             if (backup / '.git').is_dir():
                 run('git', '-C', backup, 'worktree', 'repair')
         atomic_link(release / 'shell', config)
+        switched = True
         if restart:
             start(config)
     except BaseException:
-        if restart:
+        if switched and restart:
             with contextlib.suppress(Exception):
                 stop(config.resolve())
-        if backup:
+        if backup and backup.exists():
             config.unlink(missing_ok=True)
             backup.rename(config)
             if (config / '.git').is_dir():
                 run('git', '-C', config, 'worktree', 'repair')
-        elif previous:
-            atomic_link(previous, config)
-        else:
-            config.unlink(missing_ok=True)
+        elif switched:
+            if previous:
+                atomic_link(previous, config)
+            else:
+                config.unlink(missing_ok=True)
         if restart and previous:
             with contextlib.suppress(Exception):
                 start(config)
@@ -287,15 +300,21 @@ def main():
                 raise RuntimeError('No previous release is available')
             # Legacy backups do not have a managed release.json, but remain launchable.
             old = previous.resolve()
-            if not args.no_restart:
-                stop(config.resolve())
             current = config.resolve()
-            atomic_link(old, config)
+            switched = False
             try:
+                if not args.no_restart:
+                    stop(current)
+                atomic_link(old, config)
+                switched = True
                 if not args.no_restart:
                     start(config)
             except BaseException:
-                atomic_link(current, config)
+                if switched:
+                    if not args.no_restart:
+                        with contextlib.suppress(Exception):
+                            stop(old)
+                    atomic_link(current, config)
                 if not args.no_restart:
                     start(config)
                 raise

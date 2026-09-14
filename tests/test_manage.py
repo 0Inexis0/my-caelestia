@@ -31,6 +31,19 @@ class ReleaseTests(unittest.TestCase):
         (path / 'release.json').write_text(json.dumps({'revision': name}))
         return path
 
+    def test_empty_instance_message_is_not_json(self):
+        with patch.object(m, 'run', return_value='No running instances for "/config/shell.qml"\nUse --all to list all instances.\n'):
+            self.assertEqual(m.instances(self.config), [])
+
+    def test_valid_instance_json(self):
+        with patch.object(m, 'run', return_value='[{"pid": 123}]'):
+            self.assertEqual(m.instances(self.config), [{'pid': 123}])
+
+    def test_unknown_instance_output_fails_closed(self):
+        with patch.object(m, 'run', return_value='unexpected CLI failure'):
+            with self.assertRaises(RuntimeError):
+                m.instances(self.config)
+
     def test_activation_switches_whole_release_and_preserves_previous(self):
         m.activate(self.new, self.config, self.data, restart=False)
         self.assertEqual(self.config.resolve(), self.new / 'shell')
@@ -45,10 +58,11 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(start.call_count, 2)
 
     def test_stop_failure_never_changes_active_release(self):
-        with patch.object(m, 'stop', side_effect=RuntimeError('still running')):
+        with patch.object(m, 'stop', side_effect=RuntimeError('still running')), patch.object(m, 'start') as start:
             with self.assertRaises(RuntimeError):
                 m.activate(self.new, self.config, self.data)
         self.assertEqual(self.config.resolve(), self.old / 'shell')
+        start.assert_called_once_with(self.config)
 
     def test_legacy_directory_is_restored_on_failure(self):
         self.config.unlink()
