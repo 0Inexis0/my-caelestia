@@ -14,7 +14,8 @@ jobs:
       image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repo
+        uses: actions/checkout@v7
 
       - name: Check QML format
         shell: fish {0}
@@ -31,7 +32,8 @@ jobs:
       image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repo
+        uses: actions/checkout@v7
 
       - name: Check C++ format
         shell: fish {0}

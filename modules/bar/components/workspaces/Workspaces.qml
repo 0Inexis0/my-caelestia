@@ -20,27 +20,25 @@ StyledClippingRect {
     readonly property bool onSpecial: monitor?.lastIpcObject.specialWorkspace?.name !== ""
     readonly property int activeWsId: monitor.activeWorkspace?.id ?? 1
     readonly property int activeWsIdx: workspaceIndex(activeWsId)
+    readonly property int shown: Math.max(1, Config.bar.workspaces.shown)
 
     readonly property var wsIds: {
-        const shown = root.Config.bar.workspaces.shown;
-
-        if (root.Config.bar.workspaces.showUnoccupied)
+        if (Config.bar.workspaces.showUnoccupied)
             return Array.from({
                 length: shown
             }, (_, i) => i + 1);
 
-        const ids = [];
-        const workspaces = Hypr.workspaces.values.filter(w => w.id > 0 && w.monitor === root.monitor);
+        const allMonitors = !Config.bar.workspaces.perMonitor;
+        const ignoredTags = GlobalConfig.bar.workspaces.ignoredTags;
+        const workspaces = Hypr.workspaces.values.filter(w => w.id > 0 && (allMonitors || w.monitor === root.monitor) && (w.id === activeWsId || w.toplevels.values.some(t => !Hypr.isToplevelIgnored(t, ignoredTags))));
         const currentIdx = workspaces.findIndex(w => w.id === activeWsId);
-        const lastIdx = CUtils.clamp(currentIdx, shown - 1, workspaces.length - 1);
-        for (let i = lastIdx; i >= 0 && ids.length < shown; i--) {
-            const ws = workspaces[i];
-            if (ws && (ws.toplevels.values.length > 0 || ws.id === activeWsId))
-                ids.push(ws.id);
-        }
+        if (currentIdx < 0)
+            return [];
 
-        ids.reverse();
-        return ids;
+        const end = CUtils.clamp(currentIdx + 1, Math.min(shown, workspaces.length), workspaces.length);
+        const start = Math.max(0, end - shown);
+
+        return workspaces.slice(start, end).map(w => w.id);
     }
 
     readonly property var workspaces: {
@@ -52,7 +50,7 @@ StyledClippingRect {
     readonly property int groupOffset: {
         if (!Config.bar.workspaces.showUnoccupied)
             return 0;
-        return Math.floor((activeWsId - 1) / Config.bar.workspaces.shown) * Config.bar.workspaces.shown;
+        return Math.floor((activeWsId - 1) / shown) * shown;
     }
 
     property real blur: onSpecial ? 1 : 0
@@ -63,8 +61,8 @@ StyledClippingRect {
 
         let index = id - 1;
         while (index < 0)
-            index += Config.bar.workspaces.shown;
-        return index % Config.bar.workspaces.shown;
+            index += shown;
+        return index % shown;
     }
 
     implicitWidth: Tokens.sizes.bar.innerWidth
@@ -88,7 +86,8 @@ StyledClippingRect {
 
         Loader {
             asynchronous: true
-            active: Config.bar.workspaces.occupiedBg
+            opacity: Config.bar.workspaces.occupiedBg ? 1 : 0
+            active: opacity > 0
 
             anchors.fill: parent
             anchors.margins: Tokens.padding.extraSmall
@@ -96,6 +95,12 @@ StyledClippingRect {
             sourceComponent: OccupiedBg {
                 workspaces: root.workspaces
                 wsSpacing: workspaces.spacing
+            }
+
+            Behavior on opacity {
+                Anim {
+                    type: Anim.DefaultEffects
+                }
             }
         }
 
@@ -118,12 +123,21 @@ StyledClippingRect {
             delegate: Workspace {
                 activeWsId: root.activeWsId
                 ws: Config.bar.workspaces.showUnoccupied ? root.groupOffset + index + 1 : modelData
+                monitor: root.monitor
+
+                displayType: Config.bar.workspaces.displayType
+                showWindows: Config.bar.workspaces.showWindows
+                iconRules: GlobalConfig.bar.workspaces.workspaceIcons
+                activeLabel: Config.bar.workspaces.activeLabel
+                occupiedLabel: Config.bar.workspaces.occupiedLabel
+                label: Config.bar.workspaces.label
             }
         }
 
         Loader {
             asynchronous: true
-            active: !Config.bar.workspaces.showUnoccupied
+            opacity: Config.bar.workspaces.showUnoccupied ? 0 : 1
+            active: opacity > 0
 
             anchors.fill: parent
             anchors.margins: Tokens.padding.extraSmall
@@ -131,6 +145,12 @@ StyledClippingRect {
             sourceComponent: GapMarkers {
                 workspaces: root.workspaces
                 wsSpacing: workspaces.spacing
+            }
+
+            Behavior on opacity {
+                Anim {
+                    type: Anim.DefaultEffects
+                }
             }
         }
 
@@ -156,9 +176,9 @@ StyledClippingRect {
                 if (!ws)
                     return;
                 if (Hypr.activeWsId !== ws)
-                    Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({ workspace = "${ws}" })` : `workspace ${ws}`);
+                    Hypr.focusWorkspace(ws);
                 else
-                    Hypr.dispatch(Hypr.usingLua ? 'hl.dsp.workspace.toggle_special("special")' : "togglespecialworkspace special");
+                    Hypr.toggleSpecial("special");
             }
         }
 
@@ -176,22 +196,31 @@ StyledClippingRect {
     Loader {
         id: specialWs
 
-        asynchronous: true
-
         anchors.fill: parent
-        anchors.margins: Tokens.padding.extraSmall
 
+        asynchronous: true
         active: opacity > 0
-
-        scale: root.onSpecial ? 1 : 0.5
         opacity: root.onSpecial ? 1 : 0
 
-        sourceComponent: SpecialWorkspaces {
-            screen: root.screen
-        }
+        sourceComponent: Item {
+            StyledRect {
+                anchors.fill: parent
+                radius: Tokens.rounding.full
+                color: Qt.alpha(Colours.palette.m3scrim, Colours.light ? 0 : 0.2)
+            }
 
-        Behavior on scale {
-            Anim {}
+            SpecialWorkspaces {
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.extraSmall
+                monitor: root.monitor
+
+                scale: 0.5
+                Component.onCompleted: scale = Qt.binding(() => root.onSpecial ? 1 : 0.5)
+
+                Behavior on scale {
+                    Anim {}
+                }
+            }
         }
 
         Behavior on opacity {

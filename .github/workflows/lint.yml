@@ -24,9 +24,10 @@ jobs:
       image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout source
+        uses: actions/checkout@v7
 
-      - name: Build
+      - name: CMake build
         run: |
           # Set version and git rev for CI build so we don't call git
           cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=clazy -DVERSION= -DGIT_REVISION=
@@ -60,9 +61,10 @@ jobs:
       image: ghcr.io/0inexis0/shell-arch-env:latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout source
+        uses: actions/checkout@v7
 
-      - name: Configure
+      - name: CMake build
         run: |
           cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DVERSION= -DGIT_REVISION=
