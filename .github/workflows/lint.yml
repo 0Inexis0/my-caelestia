@@ -107,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
+      - uses: actions/checkout@v7
       - name: Verify lint results
         uses: ./.github/actions/verify-checks
         with:
