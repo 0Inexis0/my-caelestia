@@ -11,7 +11,7 @@
 #  sudo password once. Piping straight into bash works too, but then it can't ask
 #  questions, so it just installs everything with default settings.)
 #
-set -uo pipefail
+set -euo pipefail
 
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}/my-caelestia"
 REPO="$DATA/source"
@@ -67,25 +67,44 @@ have git || { c_err "❌ git is not installed (sudo pacman -S git)."; exit 1; }
 # `Unrecognized pragma "DefaultEnv ..."`. Only the real AUR package will do.
 qs_is_real() { pacman -Qoq /usr/bin/qs 2>/dev/null | grep -qx quickshell-git; }
 base_ok() { have caelestia && have qs && qs_is_real && have Hyprland && [ -e /usr/lib/qt6/qml/Caelestia ]; }
+build_tools_ok() { have cmake && have ninja && have python3 && pkg base-devel && pkg qt6-shadertools && pkg qt6-m3shapes-git; }
+UPDATE_ARGS=("$@")
+[ -n "${WAYLAND_DISPLAY:-}" ] || UPDATE_ARGS+=(--no-restart)
+
+prepare_main() {
+    local repo="$1" branch
+    branch="$(git -C "$repo" branch --show-current)"
+    case "$branch" in
+        main) ;;
+        mine) git -C "$repo" branch -m main || return 1 ;;
+        *) c_err "Switch $repo to main before installing."; return 1 ;;
+    esac
+    if [ -n "$(git -C "$repo" status --porcelain)" ]; then
+        git -C "$repo" add -A && git -C "$repo" commit -m "Save local changes before bootstrap" || return 1
+    fi
+    git -C "$repo" fetch origin main || return 1
+    git -C "$repo" merge --ff-only origin/main || return 1
+    git -C "$repo" branch --set-upstream-to=origin/main main
+}
 
 # Use the current manager even when upgrading an older checkout.
-if [ -e "$REPO/.git" ] && base_ok; then
-    exec "$REPO/personal/update.sh" "$@"
+if [ -e "$REPO/.git" ] && base_ok && build_tools_ok; then
+    prepare_main "$REPO" || exit 1
+    exec "$REPO/personal/update.sh" "${UPDATE_ARGS[@]}"
 fi
-if [ -d "$LEGACY/.git" ] && base_ok; then
+if [ -d "$LEGACY/.git" ] && base_ok && build_tools_ok; then
     # Save legacy edits before cloning so migration cannot drop them.
     if [ -n "$(git -C "$LEGACY" status --porcelain)" ]; then
         git -C "$LEGACY" add -A && git -C "$LEGACY" commit -m "Save local changes before managed migration" || exit 1
     fi
     mkdir -p "$DATA"
-    git clone --no-hardlinks --branch main "$LEGACY" "$REPO" || exit 1
+    git clone --no-hardlinks "$LEGACY" "$REPO" || exit 1
     git -C "$REPO" remote set-url origin "$URL" || exit 1
-    git -C "$REPO" fetch origin main || exit 1
-    git -C "$REPO" merge --ff-only origin/main || {
+    prepare_main "$REPO" || {
         c_err "Local history diverged. Merge origin/main in $REPO, then run its personal/update.sh."
         exit 1
     }
-    exec "$REPO/personal/update.sh" "$@"
+    exec "$REPO/personal/update.sh" "${UPDATE_ARGS[@]}"
 fi
 
 # Need an AUR helper ----------------------------------------------------------
@@ -154,19 +173,17 @@ else
     # resolving that on its own — which on CachyOS silently pulls noctalia-qs
     # (see qs_is_real above) and leaves an unbootable shell. Installing the real
     # package up front means the dependency is already satisfied correctly.
-    if pacman -Qq noctalia-qs >/dev/null 2>&1; then
-        c_warn "   Removing noctalia-qs — its quickshell is too old for Caelestia..."
-        sudo pacman -Rdd --noconfirm noctalia-qs >/dev/null 2>&1 \
-            || c_warn "   (couldn't remove it; the quickshell install below may complain)"
-    fi
-    "$HELPER" -S --needed --noconfirm aur/quickshell-git \
+    # Let the package transaction replace conflicting providers only after the
+    # new package has built successfully. Never remove dependencies with -Rdd.
+    c_info "If asked, confirm replacing noctalia-qs with quickshell-git."
+    "$HELPER" -S --needed aur/quickshell-git \
         || { c_err "❌ quickshell failed to build — fix the error above and re-run."; exit 1; }
     "$HELPER" -S --needed --noconfirm hyprland xdg-desktop-portal-hyprland caelestia-shell \
         || { c_err "❌ Base install failed — fix the error above and re-run."; exit 1; }
     if ! base_ok; then
         if have qs && ! qs_is_real; then
             c_err "❌ /usr/bin/qs came from $(pacman -Qoq /usr/bin/qs 2>/dev/null), not quickshell-git."
-            c_err "   Fix with: paru -Rdd noctalia-qs && paru -S aur/quickshell-git"
+            c_err "   Install aur/quickshell-git and confirm the provider replacement."
         else
             c_err "❌ Base install finished but 'caelestia'/'qs' still missing — something is off."
         fi
@@ -213,11 +230,12 @@ fi
 # --- 3. layer my fork over the package shell ---------------------------------
 if [ -e "$REPO/.git" ] && [ "$(git -C "$REPO" remote get-url origin 2>/dev/null)" = "$URL" ]; then
     c_step "My shell fork is already cloned — updating it..."
-    git -C "$REPO" pull -q --ff-only || c_warn "   (couldn't fast-forward — keeping the existing checkout)"
+    prepare_main "$REPO" || exit 1
 else
     if [ -e "$REPO" ]; then
-        mv "$REPO" "$REPO.before-main.bak"
-        c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-main.bak"
+        backup="$(mktemp -d "$DATA/source-backup.XXXXXX")"
+        mv "$REPO" "$backup/source"
+        c_warn "📁 Moved existing $REPO aside to $backup/source"
     fi
     c_step "Installing my shell fork..."
     mkdir -p "$DATA"

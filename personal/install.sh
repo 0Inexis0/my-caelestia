@@ -2,10 +2,8 @@
 # Reinstall my personal Caelestia customizations on a new machine.
 #
 # The SHELL itself (Bluetooth volume fix, Display/Monitor settings page, etc.)
-# lives in this repo and runs simply by having this repo cloned to:
-#     ~/.config/quickshell/caelestia
-# quickshell loads that path in preference to the system package in /etc/xdg,
-# so the package can update freely without ever touching these changes.
+# is built with its matching plugin by bootstrap.sh/manage.py. This script
+# only links personal configuration; it does not build or activate the shell.
 #
 # This script handles the *other* half: the user-space config files
 # (Wallpaper Engine scripts, shell.json tweaks, German keyboard layout, ...).
@@ -23,8 +21,10 @@ link() {
     local from="$1" to="$2"
     mkdir -p "$(dirname "$to")"
     if [ -e "$to" ] && [ ! -L "$to" ]; then
-        mv "$to" "$to.pre-main.bak"
-        echo "  backed up existing $to -> $(basename "$to").pre-main.bak"
+        local backup
+        backup="$(mktemp -d "${to}.backup.XXXXXX")"
+        mv "$to" "$backup/original"
+        echo "  backed up existing $to -> $backup/original"
     fi
     ln -sfn "$from" "$to"
     echo "  linked $to"
@@ -89,5 +89,5 @@ case ":$PATH:" in *":$BIN:"*) ;; *)
 ;; esac
 
 echo
-echo "Done. Restart the shell to apply:"
-echo "    qs -c caelestia kill; caelestia shell -d"
+echo "Configuration linked. Bootstrap builds and activates the matching shell next."
+echo "For an existing managed installation, run rice-update --skip-system."
