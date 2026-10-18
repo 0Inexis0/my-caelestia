@@ -52,6 +52,17 @@ password once):
 curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/main/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 ```
 
+Preview before installing with `bash /tmp/rice.sh --dry-run`. The installer checks
+Arch/CachyOS, required commands, RAM, free space and GitHub/AUR access, then shows
+packages and configuration paths before asking for confirmation. Use `--yes` to
+accept the plan automatically (interactive feature choices still apply).
+
+Installation steps show compact progress; full output goes to
+`~/.local/share/my-caelestia/logs/install-*.log` and failures show their log tail.
+Final checks cover configuration links, JSON, compiled plugins, Qt compatibility
+and the updater command. A running Wayland session also gets an IPC check;
+TTY installs explicitly leave the graphical start untested until login.
+
 Typing this into a VM or a machine without copy-paste? Same thing, short enough to type
 (no `<`, `|` or other keys that hide when the keyboard layout is wrong):
 
