@@ -14,13 +14,15 @@ import sys
 import tempfile
 import time
 import threading
+import re
+import hashlib
 
 
 LOG = None
 
 
 @contextlib.contextmanager
-def step(label):
+def step(label, progress=None):
     """Animate activity, without pretending to know a command's percentage."""
     started = time.monotonic()
     done = threading.Event()
@@ -29,9 +31,16 @@ def step(label):
     def draw():
         tick = 0
         while not done.wait(0.12):
-            position = tick % 17
-            bar = '░' * position + '━━━' + '░' * (16 - position)
-            print(f'\r\033[2K  [{bar}] {label}  {time.monotonic() - started:.0f}s', end='', flush=True)
+            current, total = progress or (0, 0)
+            if total:
+                filled = min(19, 19 * current // total)
+                bar = '━' * filled + '░' * (19 - filled)
+                detail = f' · {current}/{total} · {100 * current // total}%'
+            else:
+                position = tick % 17
+                bar = '░' * position + '━━━' + '░' * (16 - position)
+                detail = ''
+            print(f'\r\033[2K  [{bar}] {label}{detail}  {time.monotonic() - started:.0f}s', end='', flush=True)
             tick += 1
 
     if LOG is None:
@@ -53,6 +62,53 @@ def step(label):
             worker.join()
         prefix = '\r\033[2K' if tty else ''
         print(f'{prefix}  [{status}] {label}  {time.monotonic() - started:.1f}s', flush=True)
+
+
+def parse_progress(text, progress):
+    for match in re.finditer(r'\[rice:(\d+)/(\d+)\]', text):
+        current, total = map(int, match.groups())
+        if 0 <= current <= total and total > 0:
+            progress[:] = current, total
+
+
+def compile_command(*args, cwd=None, label='Shell und Plugin bauen'):
+    """Ninja reports completed edges; compiler diagnostics remain in the log."""
+    progress = [0, 0]
+    env = {**os.environ, 'NINJA_STATUS': '[rice:%f/%t] ',
+           'CMAKE_BUILD_PARALLEL_LEVEL': str(build_jobs())}
+    if LOG is None:
+        return run(*args, cwd=cwd, env=env)
+    with step(label, progress), LOG.open('a') as output:
+        output.write('\n$ ' + ' '.join(map(str, args)) + '\n')
+        output.flush()
+        offset = output.tell()
+        process = subprocess.Popen(list(map(str, args)), cwd=cwd, env=env,
+                                   stdout=output, stderr=subprocess.STDOUT,
+                                   stdin=subprocess.DEVNULL, start_new_session=True)
+        try:
+            with LOG.open() as reader:
+                reader.seek(offset)
+                pending = ''
+                while True:
+                    pending += reader.read()
+                    lines = pending.split('\n')
+                    pending = lines.pop()
+                    parse_progress('\n'.join(lines), progress)
+                    if process.poll() is not None:
+                        parse_progress(pending + reader.read(), progress)
+                        break
+                    time.sleep(0.1)
+            if process.returncode:
+                raise subprocess.CalledProcessError(process.returncode, args,
+                                                    stderr=LOG.read_text()[-12000:])
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
 
 
 def run(*args, cwd=None, capture=False, interactive=False, **kwargs):
@@ -96,7 +152,119 @@ def build_jobs():
     return max(1, min(os.cpu_count() or 1, int(memory.split()[1]) // (2 * 1024 * 1024), 8))
 
 
-def build(source, data):
+def dependency_state(database=Path('/var/lib/pacman/local')):
+    """Include the transitive build/runtime dependencies, not unrelated apps."""
+    packages, providers = {}, {}
+    for path in database.glob('*/desc'):
+        fields = {}
+        for block in path.read_text().strip().split('\n\n'):
+            lines = block.splitlines()
+            fields[lines[0].strip('%')] = lines[1:]
+        name = fields['NAME'][0]
+        packages[name] = fields
+        for provide in fields.get('PROVIDES', []):
+            providers.setdefault(re.split(r'[<>=]', provide)[0], name)
+    roots = ['gcc', 'gcc-libs', 'binutils', 'cmake', 'ninja', 'pkgconf',
+             'qt6-base', 'qt6-declarative', 'qt6-shadertools', 'qt6-m3shapes-git',
+             'libqalculate', 'libpipewire', 'aubio', 'cava', 'libcava', 'quickshell-git']
+    state, pending = {}, roots[:]
+    while pending:
+        requirement = re.split(r'[<>=]', pending.pop())[0]
+        name = requirement if requirement in packages else providers.get(requirement, requirement)
+        if name in state:
+            continue
+        fields = packages.get(name)
+        if not fields:
+            state[name] = None
+            continue
+        state[name] = [fields['VERSION'][0], fields.get('BUILDDATE', [''])[0]]
+        pending.extend(fields.get('DEPENDS', []))
+    if not packages:
+        raise RuntimeError('Cannot read installed package database for build fingerprint')
+    return state
+
+
+def build_fingerprint(source):
+    return {'schema': 1, 'revision': git(source, 'rev-parse', 'HEAD'),
+            'qt': run('pkg-config', '--modversion', 'Qt6Core', capture=True).strip(),
+            'quickshell': run('qs', '--version', capture=True).strip(),
+            'dependencies': dependency_state(),
+            'environment': {key: os.environ.get(key, '') for key in
+                            ('CC', 'CXX', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS', 'CMAKE_PREFIX_PATH', 'PKG_CONFIG_PATH')}}
+
+
+def artifact_manifest(release):
+    return {str(path.relative_to(release)): ('link:' + os.readlink(path) if path.is_symlink()
+                                             else hashlib.sha256(path.read_bytes()).hexdigest())
+            for folder in ('shell', 'qml', 'lib') for path in (release / folder).rglob('*')
+            if (path.is_file() or path.is_symlink()) and 'personal' not in path.relative_to(release).parts}
+
+
+def reusable_release(config, fingerprint):
+    release = config.resolve().parent
+    try:
+        metadata = json.loads((release / 'release.json').read_text())
+        if (metadata.get('fingerprint') == fingerprint and metadata.get('artifacts')
+                and (release / 'shell/shell.qml').is_file()
+                and metadata['artifacts'] == artifact_manifest(release)):
+            return release
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
+def quickshell_healthy():
+    try:
+        owner = run('pacman', '-Qoq', '/usr/bin/qs', capture=True).strip()
+        if owner != 'quickshell-git':
+            return False
+        run('qs', '--private-check-compat')
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
+def ensure_quickshell(data):
+    with step('Quickshell / Qt prüfen'):
+        healthy = quickshell_healthy()
+    if healthy:
+        return False
+    print('  Qt-Konflikt oder falscher Quickshell-Anbieter — baue das Original neu.', flush=True)
+    recipe = Path(__file__).resolve().parent / 'packages/quickshell-git'
+    build_dir = data / 'builds/quickshell-git'
+    build_dir.mkdir(parents=True, exist_ok=True)
+    for name in ('PKGBUILD', 'quickshell-check.hook'):
+        shutil.copy2(recipe / name, build_dir / name)
+    run('sudo', '-v', interactive=True)
+    with step('Quickshell-Bauwerkzeuge installieren'):
+        run('sudo', '-n', 'pacman', '-S', '--needed', '--noconfirm',
+            'base-devel', 'cmake', 'ninja', 'git', 'vulkan-headers', 'spirv-tools',
+            'qt6-shadertools', 'wayland-protocols', 'cli11', 'qt6-declarative',
+            'qt6-base', 'jemalloc', 'qt6-svg', 'libpipewire', 'libxcb', 'wayland',
+            'libdrm', 'mesa', 'cpptrace', 'polkit')
+    compile_command('makepkg', '--force', '--cleanbuild', '--noconfirm',
+                    cwd=build_dir, label='Originales Quickshell bauen')
+    artifacts = run('makepkg', '--packagelist', cwd=build_dir, capture=True).splitlines()
+    packages = [path for path in artifacts if Path(path).is_file() and
+                run('pacman', '-Qpq', path, capture=True).strip() == 'quickshell-git']
+    if len(packages) != 1:
+        raise RuntimeError('Expected exactly one freshly built quickshell-git package')
+    run('sudo', '-v', interactive=True)
+    # A provider replacement requires pacman's explicit conflict answer; never
+    # remove the installed provider before the new package is ready.
+    owner = run('pacman', '-Qoq', '/usr/bin/qs', capture=True).strip() if Path('/usr/bin/qs').exists() else ''
+    if owner and owner != 'quickshell-git':
+        print('  Paketwechsel bestätigen: bisherigen Quickshell-Anbieter ersetzen.', flush=True)
+        run('sudo', '-n', 'pacman', '-U', packages[0], interactive=True)
+    else:
+        with step('Quickshell installieren'):
+            run('sudo', '-n', 'pacman', '-U', '--noconfirm', packages[0])
+    if not quickshell_healthy():
+        raise RuntimeError('Quickshell repair failed the Qt compatibility check')
+    return True
+
+
+def build(source, data, fingerprint=None):
     """Install everything in one private prefix; no writes to package-owned files."""
     revision = git(source, 'rev-parse', 'HEAD')
     releases = data / 'releases'
@@ -108,10 +276,11 @@ def build(source, data):
             run('cmake', '-S', source, '-B', build_dir, '-G', 'Ninja',
                 '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={release}',
                 '-DINSTALL_QMLDIR=qml', '-DINSTALL_LIBDIR=lib', '-DINSTALL_QSCONFDIR=shell')
-        with step('Shell und Plugin bauen'):
-            run('cmake', '--build', build_dir, '--parallel', build_jobs())
+        compile_command('cmake', '--build', build_dir, '--parallel', build_jobs())
         with step('Release installieren'):
             run('cmake', '--install', build_dir)
+        if fingerprint is not None and fingerprint != build_fingerprint(source):
+            raise RuntimeError('Build dependencies changed during compilation; retry the update')
         shell = release / 'shell/shell.qml'
         # Quickshell reads Env pragmas before constructing the QML engine.
         # Absolute paths bind this QML snapshot to exactly its own installed plugin.
@@ -125,6 +294,8 @@ def build(source, data):
             'revision': revision,
             'qt': run('pkg-config', '--modversion', 'Qt6Core', capture=True).strip(),
             'quickshell': run('qs', '--version', capture=True).strip(),
+            'fingerprint': fingerprint,
+            'artifacts': artifact_manifest(release),
         }, indent=2) + '\n')
         return release
     except BaseException:
@@ -393,6 +564,7 @@ def main():
     parser.add_argument('--skip-system', '-s', action='store_true')
     parser.add_argument('--no-restart', action='store_true', help='Install for next login; skip graphical load test/restart')
     parser.add_argument('--no-push', action='store_true', help='Do not publish local commits')
+    parser.add_argument('--rebuild', action='store_true', help='Build even when the active release matches')
     parser.add_argument('--interactive-packages', action='store_true',
                         help='Show package manager output and ask its usual questions')
     args = parser.parse_args()
@@ -451,9 +623,7 @@ def main():
                 else:
                     run(helper, '-Syu', '--noconfirm', '--sudoflags', '-n', '--sudoloop',
                         stdin=subprocess.DEVNULL)
-        with step('Quickshell / Qt prüfen'):
-            run('qs', '--version')
-            run('qs', '--private-check-compat')
+        repaired = ensure_quickshell(data)
         if update:
             if 'upstream' not in git(source, 'remote').splitlines():
                 run('git', '-C', source, 'remote', 'add', 'upstream', 'https://github.com/caelestia-dots/shell.git')
@@ -462,8 +632,16 @@ def main():
                 run('git', '-C', source, 'fetch', 'upstream', 'main', '--tags')
         safe_head = git(source, 'rev-parse', 'HEAD')
         with candidate(source, data, update) as work:
-            release = build(work, data)
-            if not args.no_restart:
+            with step('Build-Stand vergleichen'):
+                fingerprint = build_fingerprint(work)
+                release = None if args.rebuild or args.action == 'build' else reusable_release(config, fingerprint)
+            reused = release is not None
+            change_count = git(work, 'rev-list', '--count', f'{safe_head}..HEAD')
+            if not reused:
+                release = build(work, data, fingerprint)
+            else:
+                print('  [✓] Unverändert — vorhandene Release wiederverwendet.', flush=True)
+            if not args.no_restart and not reused:
                 with step('Shell-Start testen'):
                     try:
                         smoke(release, data / 'last-smoke.log')
@@ -478,9 +656,13 @@ def main():
                 raise RuntimeError('Source changed while building; refusing activation')
             run('git', '-C', source, 'merge', '--ff-only', git(work, 'rev-parse', 'HEAD'))
         # Keep existing personal/config symlink destinations valid after migration.
-        (release / 'shell/personal').symlink_to(source / 'personal', target_is_directory=True)
-        with step('Neue Release aktivieren'):
-            activate(release, config, data, restart=not args.no_restart)
+        if not reused:
+            (release / 'shell/personal').symlink_to(source / 'personal', target_is_directory=True)
+            with step('Neue Release aktivieren'):
+                activate(release, config, data, restart=not args.no_restart)
+        elif not args.no_restart:
+            with step('Laufende Shell prüfen'):
+                start(config)
         bin_dir = Path.home() / '.local/bin'
         atomic_link(source / 'personal/update.sh', bin_dir / 'rice-update')
         if update and not args.no_push:
@@ -491,7 +673,9 @@ def main():
                 print(error.stderr or '', file=sys.stderr)
                 print('Update works locally, but GitHub push failed. Commits are retained; retry git push origin main.', file=sys.stderr)
                 return 2
-    print('\n  ✓ Fertig — Caelestia ist aktualisiert.\n', flush=True)
+    print(f'\n  ✓ Fertig · {change_count} neue Commits · '
+          f'{"Build übersprungen" if reused else "neu gebaut und installiert"}'
+          f'{" · Quickshell repariert" if repaired else ""}\n', flush=True)
     return 0
 
 

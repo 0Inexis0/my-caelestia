@@ -16,6 +16,24 @@ spec.loader.exec_module(m)
 
 
 class OutputTests(unittest.TestCase):
+    def test_ninja_progress_uses_completed_edges_and_rejects_invalid_counts(self):
+        progress = [0, 0]
+        m.parse_progress('warning\n[rice:143/223] compiler\n', progress)
+        self.assertEqual(progress, [143, 223])
+        m.parse_progress('[rice:1/0]\n[rice:9/2]', progress)
+        self.assertEqual(progress, [143, 223])
+
+    def test_compile_logs_errors_and_parses_progress(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'build.log'
+            with patch.object(m, 'LOG', log), contextlib.redirect_stdout(io.StringIO()):
+                with patch.object(m, 'parse_progress', wraps=m.parse_progress) as parser:
+                    m.compile_command(sys.executable, '-c', 'print("[rice:1/2] first"); print("[rice:2/2] done")')
+                    self.assertTrue(any('[rice:2/2]' in call.args[0] for call in parser.call_args_list))
+                with self.assertRaises(m.subprocess.CalledProcessError) as error:
+                    m.compile_command(sys.executable, '-c', 'import sys; print("fatal compiler error"); sys.exit(1)')
+                self.assertIn('fatal compiler error', error.exception.stderr)
+
     def test_success_output_is_logged_and_capture_stays_parseable(self):
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / 'update.log'
@@ -71,6 +89,22 @@ class ReleaseTests(unittest.TestCase):
         with patch.object(m, 'run', return_value='No running instances for "/config/shell.qml"\nUse --all to list all instances.\n'):
             self.assertEqual(m.instances(self.config), [])
 
+    def test_reuse_requires_matching_inputs_and_intact_artifacts(self):
+        fingerprint = {'revision': 'abc', 'qt': '6.12', 'dependencies': {'gcc': '16'}}
+        (self.old / 'release.json').write_text(json.dumps({
+            'fingerprint': fingerprint, 'artifacts': m.artifact_manifest(self.old)}))
+        self.assertEqual(m.reusable_release(self.config, fingerprint), self.old)
+        for changed in ({**fingerprint, 'revision': 'new'}, {**fingerprint, 'qt': '6.13'},
+                        {**fingerprint, 'dependencies': {'gcc': '17'}}):
+            self.assertIsNone(m.reusable_release(self.config, changed))
+        (self.old / 'shell/shell.qml').write_text('corrupt')
+        self.assertIsNone(m.reusable_release(self.config, fingerprint))
+
+    def test_legacy_metadata_and_missing_artifacts_require_rebuild(self):
+        self.assertIsNone(m.reusable_release(self.config, {'revision': 'old'}))
+        (self.old / 'release.json').write_text('{broken json')
+        self.assertIsNone(m.reusable_release(self.config, {}))
+
     def test_valid_instance_json(self):
         with patch.object(m, 'run', return_value='[{"pid": 123}]'):
             self.assertEqual(m.instances(self.config), [{'pid': 123}])
@@ -117,6 +151,61 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(list((self.data / 'releases').iterdir()), [])
         self.assertTrue((self.old / 'release.json').exists())
         self.assertEqual(self.config.resolve(), self.old / 'shell')
+
+
+class RepairTests(unittest.TestCase):
+    def test_healthy_quickshell_needs_no_build(self):
+        with patch.object(m, 'quickshell_healthy', return_value=True), patch.object(m, 'compile_command') as build:
+            self.assertFalse(m.ensure_quickshell(Path('/unused')))
+            build.assert_not_called()
+
+    def test_failed_build_never_removes_or_installs_provider(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(m, 'quickshell_healthy', return_value=False), patch.object(m, 'run') as run:
+                with patch.object(m, 'compile_command', side_effect=RuntimeError('build failed')):
+                    with self.assertRaises(RuntimeError):
+                        m.ensure_quickshell(Path(directory))
+                self.assertFalse(any('-U' in call.args or '-Rdd' in call.args for call in run.call_args_list))
+
+    def test_repair_installs_only_exact_built_package_and_rechecks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / 'quickshell-git.pkg.tar.zst'
+            package.touch()
+            def command(*args, **kwargs):
+                if args[:2] == ('makepkg', '--packagelist'):
+                    return str(package) + '\n'
+                if args[:2] in (('pacman', '-Qpq'), ('pacman', '-Qoq')):
+                    return 'quickshell-git\n'
+                return ''
+            with patch.object(m, 'quickshell_healthy', side_effect=[False, True]) as check:
+                with patch.object(m, 'run', side_effect=command) as run, patch.object(m, 'compile_command') as build:
+                    self.assertTrue(m.ensure_quickshell(root))
+                    self.assertEqual(check.call_count, 2)
+                    self.assertIn('--cleanbuild', build.call_args.args)
+                    installs = [call.args for call in run.call_args_list if '-U' in call.args]
+                    self.assertEqual(installs, [('sudo', '-n', 'pacman', '-U', '--noconfirm', str(package))])
+
+    def test_wrong_provider_fails_health_check_without_trusting_its_version(self):
+        with patch.object(m, 'run', return_value='noctalia-qs\n') as run:
+            self.assertFalse(m.quickshell_healthy())
+            self.assertEqual(run.call_count, 1)
+
+    def test_dependency_closure_ignores_unrelated_packages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def package(name, version, dependencies=''):
+                path = root / name
+                path.mkdir(exist_ok=True)
+                (path / 'desc').write_text(f'%NAME%\n{name}\n\n%VERSION%\n{version}\n\n%DEPENDS%\n{dependencies}\n')
+            package('gcc', '1', 'libc>=1')
+            package('libc', '1')
+            package('firefox', '1')
+            first = m.dependency_state(root)
+            package('firefox', '2')
+            self.assertEqual(first, m.dependency_state(root))
+            package('libc', '2')
+            self.assertNotEqual(first, m.dependency_state(root))
 
 
 class GitTests(unittest.TestCase):

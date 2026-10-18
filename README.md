@@ -88,14 +88,25 @@ The sudo password prompt remains visible.
 - `rice-update --skip-system`: build/sync without upgrading system packages.
 - `rice-update --rollback`: select and start the previous shell **and plugin**.
 - `rice-update --no-push`: update locally without publishing commits.
+- `rice-update --rebuild`: force a new release even if all build inputs match.
 - `rice-update --no-restart`: install for the next login; explicitly skip graphical
   validation and restart (useful from a TTY).
 
 Building requires `base-devel`, `cmake`, `ninja`, `python`, `qt6-shadertools` and
-the runtime dependencies installed by bootstrap. Every update rebuilds against
-the current Qt installation, including when no Git commit changed. Quickshell
-itself must also be rebuilt if a Qt upgrade breaks its private ABI. A previous
-release cannot undo a system package/Qt upgrade.
+the runtime dependencies installed by bootstrap. An unchanged active release is
+reused without compilation or restart when its source revision, Qt/Quickshell,
+transitive build dependencies, environment and installed file hashes match.
+Older releases without this metadata are rebuilt once. Ninja builds show completed
+steps and a percentage; other phases use an activity bar.
+
+If the original Quickshell fails its Qt compatibility check (or a different
+provider owns `qs`), the updater builds `quickshell-git` directly with `makepkg`
+using the bundled AUR recipe in `personal/packages/quickshell-git/`. It never asks
+an AUR helper to resolve a Quickshell provider. Build failures leave the installed
+package intact. Installation requires sudo; replacing another provider shows
+pacman's conflict confirmation. The installed package is checked again before
+Caelestia is built. This repair also applies with `--skip-system`.
+A previous release cannot undo a system package/Qt upgrade.
 
 Edit shell source in `~/.local/share/my-caelestia/source`, then run `rice-update`.
 Runtime releases are generated snapshots. Keep personal configuration in
