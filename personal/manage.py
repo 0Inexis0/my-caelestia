@@ -13,9 +13,66 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 
 
-def run(*args, cwd=None, capture=False, **kwargs):
+LOG = None
+
+
+@contextlib.contextmanager
+def step(label):
+    """Animate activity, without pretending to know a command's percentage."""
+    started = time.monotonic()
+    done = threading.Event()
+    tty = sys.stdout.isatty()
+
+    def draw():
+        tick = 0
+        while not done.wait(0.12):
+            position = tick % 17
+            bar = '░' * position + '━━━' + '░' * (16 - position)
+            print(f'\r\033[2K  [{bar}] {label}  {time.monotonic() - started:.0f}s', end='', flush=True)
+            tick += 1
+
+    if LOG is None:
+        yield
+        return
+    print(f'  [···] {label}', end='' if tty else '\n', flush=True)
+    worker = threading.Thread(target=draw, daemon=True) if tty else None
+    if worker:
+        worker.start()
+    status = '✓'
+    try:
+        yield
+    except BaseException:
+        status = '✗'
+        raise
+    finally:
+        done.set()
+        if worker:
+            worker.join()
+        prefix = '\r\033[2K' if tty else ''
+        print(f'{prefix}  [{status}] {label}  {time.monotonic() - started:.1f}s', flush=True)
+
+
+def run(*args, cwd=None, capture=False, interactive=False, **kwargs):
+    if LOG is not None and not interactive:
+        with LOG.open('a+') as output:
+            output.write('\n$ ' + ' '.join(str(a) for a in args) + '\n')
+            output.flush()
+            offset = output.tell()
+            try:
+                result = subprocess.run([str(a) for a in args], cwd=cwd, check=True,
+                                        text=True, stdout=subprocess.PIPE if capture else output,
+                                        stderr=output, **kwargs)
+                if capture:
+                    output.write(result.stdout)
+                return result.stdout
+            except subprocess.CalledProcessError as error:
+                output.seek(offset)
+                details = output.read()[-12000:]
+                error.stderr = details
+                raise
     return subprocess.run([str(a) for a in args], cwd=cwd, check=True,
                           text=True, stdout=subprocess.PIPE if capture else None,
                           **kwargs).stdout
@@ -47,11 +104,14 @@ def build(source, data):
     release = Path(tempfile.mkdtemp(prefix=revision[:12] + '-', dir=releases))
     build_dir = source / 'build'
     try:
-        run('cmake', '-S', source, '-B', build_dir, '-G', 'Ninja',
-            '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={release}',
-            '-DINSTALL_QMLDIR=qml', '-DINSTALL_LIBDIR=lib', '-DINSTALL_QSCONFDIR=shell')
-        run('cmake', '--build', build_dir, '--parallel', build_jobs())
-        run('cmake', '--install', build_dir)
+        with step('Build vorbereiten'):
+            run('cmake', '-S', source, '-B', build_dir, '-G', 'Ninja',
+                '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={release}',
+                '-DINSTALL_QMLDIR=qml', '-DINSTALL_LIBDIR=lib', '-DINSTALL_QSCONFDIR=shell')
+        with step('Shell und Plugin bauen'):
+            run('cmake', '--build', build_dir, '--parallel', build_jobs())
+        with step('Release installieren'):
+            run('cmake', '--install', build_dir)
         shell = release / 'shell/shell.qml'
         # Quickshell reads Env pragmas before constructing the QML engine.
         # Absolute paths bind this QML snapshot to exactly its own installed plugin.
@@ -272,12 +332,13 @@ def activate(release, config, data, restart=True):
         raise
     if previous:
         atomic_link(previous, data / 'previous')
-    print(f'Activated {release.name}', flush=True)
+    if LOG is None:
+        print(f'Activated {release.name}', flush=True)
 
 
 def save_edits(source):
-    if git(source, 'branch', '--show-current') != 'mine':
-        raise RuntimeError('Updates require branch mine; use build to test another branch')
+    if git(source, 'branch', '--show-current') != 'main':
+        raise RuntimeError('Updates require branch main; use build to test another branch')
     if git(source, 'diff', '--name-only', '--diff-filter=U'):
         raise RuntimeError('Resolve the existing Git conflicts before updating')
     for state in ('MERGE_HEAD', 'rebase-merge', 'rebase-apply'):
@@ -294,7 +355,7 @@ def managed_source(source, data):
         return source
     if destination.exists():
         raise RuntimeError(f'{destination} already exists; run its personal/update.sh instead')
-    run('git', 'clone', '--no-hardlinks', '--branch', 'mine', source, destination)
+    run('git', 'clone', '--no-hardlinks', '--branch', 'main', source, destination)
     run('git', '-C', destination, 'remote', 'set-url', 'origin', git(source, 'remote', 'get-url', 'origin'))
     upstream = git(source, 'remote', 'get-url', 'upstream') if 'upstream' in git(source, 'remote').splitlines() else 'https://github.com/caelestia-dots/shell.git'
     run('git', '-C', destination, 'remote', 'add', 'upstream', upstream)
@@ -307,35 +368,44 @@ def candidate(source, data, update):
     run('git', '-C', source, 'worktree', 'add', '--detach', path, 'HEAD')
     try:
         if update:
-            for ref in ('origin/mine', 'upstream/main'):
-                try:
-                    run('git', '-C', path, 'merge', '--no-edit', ref)
-                except subprocess.CalledProcessError:
-                    conflicts = git(path, 'diff', '--name-only', '--diff-filter=U')
-                    if ref == 'upstream/main' and conflicts == 'README.md':
-                        run('git', '-C', path, 'checkout', '--ours', 'README.md')
-                        run('git', '-C', path, 'add', 'README.md')
-                        run('git', '-C', path, 'commit', '--no-edit')
-                    else:
-                        raise RuntimeError(f'Merge of {ref} failed ({conflicts}); live shell unchanged')
+            with step('main und Upstream zusammenführen'):
+                for ref in ('origin/main', 'upstream/main'):
+                    try:
+                        run('git', '-C', path, 'merge', '--no-edit', ref)
+                    except subprocess.CalledProcessError:
+                        conflicts = git(path, 'diff', '--name-only', '--diff-filter=U')
+                        if ref == 'upstream/main' and conflicts == 'README.md':
+                            run('git', '-C', path, 'checkout', '--ours', 'README.md')
+                            run('git', '-C', path, 'add', 'README.md')
+                            run('git', '-C', path, 'commit', '--no-edit')
+                        else:
+                            raise RuntimeError(f'Merge of {ref} failed ({conflicts}); live shell unchanged')
         yield path
     finally:
         run('git', '-C', source, 'worktree', 'remove', '--force', path)
 
 
 def main():
+    global LOG
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('update', 'install', 'build', 'rollback'))
     parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--skip-system', '-s', action='store_true')
     parser.add_argument('--no-restart', action='store_true', help='Install for next login; skip graphical load test/restart')
     parser.add_argument('--no-push', action='store_true', help='Do not publish local commits')
+    parser.add_argument('--interactive-packages', action='store_true',
+                        help='Show package manager output and ask its usual questions')
     args = parser.parse_args()
     data = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'my-caelestia'
     config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'quickshell/caelestia'
     data.mkdir(parents=True, exist_ok=True)
     with (data / 'update.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        logs = data / 'logs'
+        logs.mkdir(exist_ok=True)
+        LOG = logs / (time.strftime('%Y%m%d-%H%M%S') + f'-{os.getpid()}.log')
+        LOG.touch()
+        print(f'\n  CAELESTIA · {args.action}\n  Log: {LOG}\n', flush=True)
         if args.action == 'rollback':
             previous = data / 'previous'
             if not previous.exists():
@@ -365,24 +435,42 @@ def main():
         source = args.source.resolve()
         update = args.action == 'update'
         if args.action != 'build':
-            save_edits(source)
-            source = managed_source(source, data)
+            with step('Lokale Änderungen sichern'):
+                save_edits(source)
+                source = managed_source(source, data)
         if update and not args.skip_system:
             helper = shutil.which('yay') or shutil.which('paru')
             if not helper:
                 raise RuntimeError('Install yay/paru or explicitly use --skip-system')
-            run(helper, '-Syu')
-        run('qs', '--version')  # Catch a broken Qt private ABI after the package update.
+            if not args.interactive_packages:
+                # Authenticate visibly before output is redirected; never hide a password prompt.
+                run('sudo', '-v', interactive=True)
+            with step('Systempakete aktualisieren') if not args.interactive_packages else contextlib.nullcontext():
+                if args.interactive_packages:
+                    run(helper, '-Syu', interactive=True)
+                else:
+                    run(helper, '-Syu', '--noconfirm', '--sudoflags', '-n', '--sudoloop',
+                        stdin=subprocess.DEVNULL)
+        with step('Quickshell / Qt prüfen'):
+            run('qs', '--version')
+            run('qs', '--private-check-compat')
         if update:
             if 'upstream' not in git(source, 'remote').splitlines():
                 run('git', '-C', source, 'remote', 'add', 'upstream', 'https://github.com/caelestia-dots/shell.git')
-            run('git', '-C', source, 'fetch', 'origin', 'mine')
-            run('git', '-C', source, 'fetch', 'upstream', 'main', '--tags')
+            with step('Updates laden'):
+                run('git', '-C', source, 'fetch', 'origin', 'main')
+                run('git', '-C', source, 'fetch', 'upstream', 'main', '--tags')
         safe_head = git(source, 'rev-parse', 'HEAD')
         with candidate(source, data, update) as work:
             release = build(work, data)
             if not args.no_restart:
-                smoke(release, data / 'last-smoke.log')
+                with step('Shell-Start testen'):
+                    try:
+                        smoke(release, data / 'last-smoke.log')
+                    except RuntimeError as error:
+                        smoke_log = data / 'last-smoke.log'
+                        details = smoke_log.read_text()[-12000:] if smoke_log.exists() else ''
+                        raise RuntimeError(f'{error}\n{details}') from error
             if args.action == 'build':
                 print(f'Prepared release: {release}')
                 return
@@ -391,15 +479,19 @@ def main():
             run('git', '-C', source, 'merge', '--ff-only', git(work, 'rev-parse', 'HEAD'))
         # Keep existing personal/config symlink destinations valid after migration.
         (release / 'shell/personal').symlink_to(source / 'personal', target_is_directory=True)
-        activate(release, config, data, restart=not args.no_restart)
+        with step('Neue Release aktivieren'):
+            activate(release, config, data, restart=not args.no_restart)
         bin_dir = Path.home() / '.local/bin'
         atomic_link(source / 'personal/update.sh', bin_dir / 'rice-update')
         if update and not args.no_push:
             try:
-                run('git', '-C', source, 'push', 'origin', 'mine')
-            except subprocess.CalledProcessError:
-                print('Update works locally, but GitHub push failed. Commits are retained; retry git push origin mine.', file=sys.stderr)
+                with step('main mit GitHub synchronisieren'):
+                    run('git', '-C', source, 'push', 'origin', 'main')
+            except subprocess.CalledProcessError as error:
+                print(error.stderr or '', file=sys.stderr)
+                print('Update works locally, but GitHub push failed. Commits are retained; retry git push origin main.', file=sys.stderr)
                 return 2
+    print('\n  ✓ Fertig — Caelestia ist aktualisiert.\n', flush=True)
     return 0
 
 
@@ -407,5 +499,12 @@ if __name__ == '__main__':
     try:
         sys.exit(main())
     except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
+        if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+            print(error.stderr, file=sys.stderr)
         print(f'rice-update: {error}', file=sys.stderr)
+        if LOG:
+            print(f'Vollständiges Log: {LOG}', file=sys.stderr)
         sys.exit(1)
+    except KeyboardInterrupt:
+        print('\nrice-update: Abgebrochen.', file=sys.stderr)
+        sys.exit(130)

@@ -23,8 +23,8 @@ link() {
     local from="$1" to="$2"
     mkdir -p "$(dirname "$to")"
     if [ -e "$to" ] && [ ! -L "$to" ]; then
-        mv "$to" "$to.pre-mine.bak"
-        echo "  backed up existing $to -> $(basename "$to").pre-mine.bak"
+        mv "$to" "$to.pre-main.bak"
+        echo "  backed up existing $to -> $(basename "$to").pre-main.bak"
     fi
     ln -sfn "$from" "$to"
     echo "  linked $to"

@@ -5,7 +5,7 @@
 # which), then layers my fork + config on top. Safe to re-run — anything already
 # present is detected and skipped (never installed twice).
 #
-#   curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
+#   curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/main/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 #
 # (Run it from a normal terminal/TTY as your user — NOT as root. It asks for your
 #  sudo password once. Piping straight into bash works too, but then it can't ask
@@ -78,11 +78,11 @@ if [ -d "$LEGACY/.git" ] && base_ok; then
         git -C "$LEGACY" add -A && git -C "$LEGACY" commit -m "Save local changes before managed migration" || exit 1
     fi
     mkdir -p "$DATA"
-    git clone --no-hardlinks --branch mine "$LEGACY" "$REPO" || exit 1
+    git clone --no-hardlinks --branch main "$LEGACY" "$REPO" || exit 1
     git -C "$REPO" remote set-url origin "$URL" || exit 1
-    git -C "$REPO" fetch origin mine || exit 1
-    git -C "$REPO" merge --ff-only origin/mine || {
-        c_err "Local history diverged. Merge origin/mine in $REPO, then run its personal/update.sh."
+    git -C "$REPO" fetch origin main || exit 1
+    git -C "$REPO" merge --ff-only origin/main || {
+        c_err "Local history diverged. Merge origin/main in $REPO, then run its personal/update.sh."
         exit 1
     }
     exec "$REPO/personal/update.sh" "$@"
@@ -216,12 +216,12 @@ if [ -e "$REPO/.git" ] && [ "$(git -C "$REPO" remote get-url origin 2>/dev/null)
     git -C "$REPO" pull -q --ff-only || c_warn "   (couldn't fast-forward — keeping the existing checkout)"
 else
     if [ -e "$REPO" ]; then
-        mv "$REPO" "$REPO.before-mine.bak"
-        c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-mine.bak"
+        mv "$REPO" "$REPO.before-main.bak"
+        c_warn "📁 Moved existing $REPO aside to $(basename "$REPO").before-main.bak"
     fi
     c_step "Installing my shell fork..."
     mkdir -p "$DATA"
-    git clone -q --branch mine "$URL" "$REPO" || exit 1
+    git clone -q --branch main "$URL" "$REPO" || exit 1
 fi
 cd "$REPO"
 git remote add upstream "$UPSTREAM" 2>/dev/null || true

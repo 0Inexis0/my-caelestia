@@ -23,7 +23,7 @@ private release under `~/.local/share/my-caelestia/releases/`. It never replaces
 files owned by the system `caelestia-shell` package. The stable package supplies
 runtime dependencies; its older plugin is not used by the managed shell.
 
-The source checkout is `~/.local/share/my-caelestia/source` on branch `mine`.
+The source checkout is `~/.local/share/my-caelestia/source` on branch `main`.
 The active configuration at `~/.config/quickshell/caelestia` points to a built
 release. Normal `caelestia shell` commands continue to work. XDG directory
 overrides are respected. See [the integration review](docs/upstream-review-2026-09-14.md).
@@ -49,7 +49,7 @@ On a fresh Arch/CachyOS machine, paste this in a normal terminal (it asks for yo
 password once):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/mine/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/main/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
 ```
 
 Typing this into a VM or a machine without copy-paste? Same thing, short enough to type
@@ -72,13 +72,19 @@ command — then starts the shell. Done.
 rice-update
 ```
 
-This saves local source edits, updates packages (`yay -Syu` / `paru -Syu`), fetches
-`origin/mine` and `upstream/main`, and merges them in a temporary worktree.
+This saves local source edits, updates packages (`yay -Syu` / `paru -Syu` with
+`--noconfirm`, accepting default answers), fetches
+`origin/main` and `upstream/main`, and merges them in a temporary worktree.
 It builds a complete release, test-loads it with private state, and then switches
 the active configuration. Merge/build/load failures leave the running release
 selected. A failed launch restores the previous selection. GitHub sync uses a
 normal push and reports failure instead of silently force-pushing history.
 
+The terminal shows animated step bars and elapsed time. Full command output is
+saved to `~/.local/share/my-caelestia/logs/`; failures display diagnostic output.
+The sudo password prompt remains visible.
+
+- `rice-update --interactive-packages`: show package output and answer prompts manually.
 - `rice-update --skip-system`: build/sync without upgrading system packages.
 - `rice-update --rollback`: select and start the previous shell **and plugin**.
 - `rice-update --no-push`: update locally without publishing commits.

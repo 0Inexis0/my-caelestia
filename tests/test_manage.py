@@ -5,11 +5,45 @@ import shutil
 from pathlib import Path
 import tempfile
 import unittest
+import io
+import contextlib
+import sys
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('manage', Path(__file__).resolve().parents[1] / 'personal/manage.py')
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
+
+
+class OutputTests(unittest.TestCase):
+    def test_success_output_is_logged_and_capture_stays_parseable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'update.log'
+            with patch.object(m, 'LOG', log), contextlib.redirect_stdout(io.StringIO()) as visible:
+                value = m.run(sys.executable, '-c', 'import sys; print("value"); print("warning", file=sys.stderr)', capture=True)
+                m.run(sys.executable, '-c', 'print("build details")')
+            self.assertEqual(value, 'value\n')
+            self.assertEqual(visible.getvalue(), '')
+            self.assertIn('warning', log.read_text())
+            self.assertIn('build details', log.read_text())
+
+    def test_failure_retains_diagnostics_and_marks_step_failed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(m, 'LOG', Path(directory) / 'update.log'):
+                with contextlib.redirect_stdout(io.StringIO()) as visible:
+                    with self.assertRaises(m.subprocess.CalledProcessError) as error:
+                        with m.step('Test build'):
+                            m.run(sys.executable, '-c', 'import sys; print("compiler error", file=sys.stderr); sys.exit(2)')
+                self.assertIn('compiler error', error.exception.stderr)
+                self.assertIn('[✗] Test build', visible.getvalue())
+
+    def test_interrupt_marks_step_failed_without_traceback(self):
+        with patch.object(m, 'LOG', Path('/unused')):
+            with contextlib.redirect_stdout(io.StringIO()) as visible:
+                with self.assertRaises(KeyboardInterrupt):
+                    with m.step('Interrupted'):
+                        raise KeyboardInterrupt
+            self.assertIn('[✗] Interrupted', visible.getvalue())
 
 
 class ReleaseTests(unittest.TestCase):
@@ -93,12 +127,12 @@ class GitTests(unittest.TestCase):
         self.source = self.root / 'source'
         self.data = self.root / 'data'
         self.data.mkdir()
-        m.run('git', 'init', '-q', '-b', 'mine', self.source)
+        m.run('git', 'init', '-q', '-b', 'main', self.source)
         m.git(self.source, 'config', 'user.name', 'Test')
         m.git(self.source, 'config', 'user.email', 'test@example.invalid')
         self.commit('base.txt', 'base')
         self.base = m.git(self.source, 'rev-parse', 'HEAD')
-        m.git(self.source, 'update-ref', 'refs/remotes/origin/mine', self.base)
+        m.git(self.source, 'update-ref', 'refs/remotes/origin/main', self.base)
         m.git(self.source, 'update-ref', 'refs/remotes/upstream/main', self.base)
 
     def commit(self, name, text):
@@ -109,12 +143,12 @@ class GitTests(unittest.TestCase):
     def test_candidate_merges_both_remotes_without_touching_source(self):
         self.commit('remote.txt', 'remote')
         remote = m.git(self.source, 'rev-parse', 'HEAD')
-        m.git(self.source, 'update-ref', 'refs/remotes/origin/mine', remote)
+        m.git(self.source, 'update-ref', 'refs/remotes/origin/main', remote)
         m.git(self.source, 'checkout', '-q', '--detach', self.base)
         self.commit('upstream.txt', 'upstream')
         upstream = m.git(self.source, 'rev-parse', 'HEAD')
         m.git(self.source, 'update-ref', 'refs/remotes/upstream/main', upstream)
-        m.git(self.source, 'checkout', '-q', '-B', 'mine', self.base)
+        m.git(self.source, 'checkout', '-q', '-B', 'main', self.base)
         self.commit('local.txt', 'local')
         local = m.git(self.source, 'rev-parse', 'HEAD')
         with m.candidate(self.source, self.data, True) as path:
@@ -128,7 +162,7 @@ class GitTests(unittest.TestCase):
     def test_conflict_keeps_live_source_and_cleans_worktree(self):
         self.commit('base.txt', 'remote change')
         m.git(self.source, 'update-ref', 'refs/remotes/upstream/main', m.git(self.source, 'rev-parse', 'HEAD'))
-        m.git(self.source, 'checkout', '-q', '-B', 'mine', self.base)
+        m.git(self.source, 'checkout', '-q', '-B', 'main', self.base)
         self.commit('base.txt', 'local change')
         head = m.git(self.source, 'rev-parse', 'HEAD')
         with self.assertRaises(RuntimeError):
