@@ -15,24 +15,32 @@ class InstallTests(unittest.TestCase):
             root = Path(directory)
             personal = root / 'personal'
             shutil.copytree(ROOT / 'personal', personal)
+            shutil.copytree(ROOT / 'assets', root / 'assets')
             config = root / 'config'
             commands = root / 'commands'
             commands.mkdir()
             stub = commands / 'hyprctl'
             stub.write_text('#!/bin/sh\nexit 1\n')
             stub.chmod(0o755)
+            sudo = commands / 'sudo'
+            sudo.write_text('#!/bin/sh\nexit 1\n')
+            sudo.chmod(0o755)
             env = {**os.environ, 'HOME': str(root), 'XDG_CONFIG_HOME': str(config),
                    'PATH': f'{commands}:{root}/.local/bin:/usr/bin:/bin'}
             target = config / 'caelestia/shell.json'
             target.parent.mkdir(parents=True)
             target.write_text('first settings')
             for value in ('first settings', 'second settings'):
+                if value == 'second settings':
+                    self.assertEqual((root / '.face').read_bytes(), (ROOT / 'assets/user.svg').read_bytes())
+                    (root / '.face').write_text('custom avatar')
                 if target.is_symlink():
                     target.unlink()
                     target.write_text(value)
                 subprocess.run(['bash', str(personal / 'install.sh')], env=env,
                                check=True, capture_output=True, text=True)
                 self.assertTrue(target.is_symlink())
+            self.assertEqual((root / '.face').read_text(), 'custom avatar')
             backups = {p.read_text() for p in target.parent.glob('shell.json.backup.*/original')}
             self.assertEqual(backups, {'first settings', 'second settings'})
             self.assertEqual((root / '.local/bin/rice-update').resolve(), personal / 'update.sh')

@@ -310,6 +310,8 @@ def add_feature_probe(shell):
     text = shell.read_text()
     text = text.replace('ShellRoot {', """import qs.components as ProbeComponents
 import qs.modules.ai as ProbeAi
+import qs.modules.sidebar as ProbeSidebar
+import qs.modules.session as ProbeSession
 import qs.modules.nexus as ProbeNexus
 import qs.modules.nexus.pages as ProbePages
 import qs.modules.nexus.pages.display as ProbeDisplay
@@ -330,6 +332,9 @@ ShellRoot {""", 1)
                 Component.onCompleted: console.info("Fork feature probe loaded")
         ProbeComponents.ScreenState { id: probeState; modelData: Quickshell.screens[0]; ai: true }
         ProbeNexus.NexusState { id: probeNexus; screen: Quickshell.screens[0] }
+        ProbeSidebar.Props { id: probeSidebarProps }
+        ProbeSidebar.NotifDock { props: probeSidebarProps; screenState: probeState; width: 400; height: 500 }
+        ProbeSession.Content { screenState: probeState }
         ProbeAi.Content { screenState: probeState; maxHeight: 740 }
         ProbeAi.MessageItem { role: "user"; content: "Load test"; images: [] }
         ProbePages.DisplayPage { nState: probeNexus; width: 800 }

@@ -12,6 +12,12 @@ Item {
     readonly property Props props: Props {}
 
     readonly property bool shouldBeActive: screenState.sidebar && Config.sidebar.enabled
+    // Keep the lazy content after first use so a paused run survives closing the drawer.
+    property bool wasOpened: false
+    onShouldBeActiveChanged: {
+        if (shouldBeActive)
+            wasOpened = true;
+    }
     property real offsetScale: shouldBeActive ? 0 : 1
 
     visible: offsetScale < 1
@@ -33,7 +39,7 @@ Item {
         anchors.margins: CUtils.clamp(anchors.leftMargin - Config.border.thickness, 0, anchors.leftMargin)
         anchors.bottomMargin: 0
 
-        active: root.shouldBeActive || root.visible
+        active: root.shouldBeActive || root.visible || root.wasOpened
 
         sourceComponent: Content {
             implicitWidth: Tokens.sizes.sidebar.width - content.anchors.leftMargin - content.anchors.margins

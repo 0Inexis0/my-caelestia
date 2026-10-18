@@ -49,12 +49,25 @@ Column {
         KeyNavigation.down: hibernate
     }
 
+    MaterialIcon {
+        width: Tokens.sizes.session.button
+        height: Tokens.sizes.session.button
+        visible: !sessionArt.visible
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        text: "power_settings_new"
+        color: Colours.palette.m3primary
+        fontStyle: Tokens.font.icon.size(Tokens.sizes.session.button * 0.5).build()
+    }
+
     AnimatedImage {
+        id: sessionArt
+        visible: Config.paths.sessionGif !== "" && Config.paths.sessionGif !== "root:/assets/kurukuru.gif"
         width: Tokens.sizes.session.button
         height: Tokens.sizes.session.button
         sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
 
-        playing: visible
+        playing: visible && root.screenState.session
         asynchronous: true
         speed: Config.general.sessionGifSpeed
         source: Paths.absolutePath(Config.paths.sessionGif)

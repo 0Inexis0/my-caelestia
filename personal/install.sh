@@ -30,6 +30,8 @@ link() {
     echo "  linked $to"
 }
 
+bash "$PERSONAL/install-avatar.sh"
+
 echo "Linking Caelestia config + Wallpaper Engine scripts..."
 chmod +x "$SRC"/caelestia/*.sh
 link "$SRC/caelestia/shell.json"            "$DEST/caelestia/shell.json"

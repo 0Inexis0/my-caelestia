@@ -32,6 +32,7 @@ overrides are respected. See [the integration review](docs/upstream-review-2026-
 
 | Type | Change | Summary | Where |
 |---|---|---|---|
+| ✨ Feature | Playable sidebar Dino | Click / Space / Up to jump, increasing speed, pause and saved high score; neutral power-menu and login artwork. | [Controls and setup](docs/dino-game.md) |
 | ✨ Feature | AI assistant page | Local [Ollama](https://ollama.com) chat panel (**`Super+A`**): streaming responses incl. thinking, multi-chat history, image attachments, context & temperature settings. No cloud, no API key. | `modules/ai/`, `services/Ollama.qml` |
 | ✨ Feature | Display settings page | New Nexus page: per-monitor resolution / refresh rate / scale, enable/disable outputs, auto-disable internal panel; persists to `monitors.d/`. | `modules/nexus/pages/DisplayPage.qml`, `…/display/` |
 | ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
