@@ -44,6 +44,15 @@ local function is_internal(name)
     return type(name) == "string" and (name:match("^eDP") ~= nil or name:match("^LVDS") ~= nil)
 end
 
+local function is_external(name)
+    -- Headless/Wayland/X11 outputs are virtual and must never switch off the
+    -- laptop panel. Only physical external connectors count for auto-disable.
+    return type(name) == "string" and (
+        name:match("^HDMI%-") ~= nil or name:match("^DP%-") ~= nil
+        or name:match("^DVI%-") ~= nil or name:match("^VGA%-") ~= nil
+    )
+end
+
 -- Normalise a monitor event payload (table with .name, bare string, or nil) to
 -- a plain name string or nil. Avoids the `a and a.name or a` pitfall, which
 -- returns the table itself when .name is nil.
@@ -73,7 +82,7 @@ end
 
 local function has_external(exclude)
     for _, m in ipairs(hl.get_monitors()) do
-        if not is_internal(m.name) and m.name ~= exclude then
+        if is_external(m.name) and m.disabled ~= true and m.name ~= exclude then
             return true
         end
     end
@@ -89,6 +98,9 @@ end
 
 hl.on("monitor.added", function(mon)
     local added = mon_name(mon)
+    if added and not is_internal(added) and not is_external(added) then
+        return
+    end
     if not (added and is_internal(added)) then
         -- Only disable internals while an external is actually present (never black out everything)
         if has_external(nil) then
@@ -102,6 +114,9 @@ end)
 
 hl.on("monitor.removed", function(mon)
     local removed = mon_name(mon)
+    if removed and not is_internal(removed) and not is_external(removed) then
+        return
+    end
     if not has_external(removed) then
         for _, name in ipairs(marked_internals()) do
             hl.monitor({ output = name, disabled = false, mode = "preferred", position = "auto", scale = 1 })
