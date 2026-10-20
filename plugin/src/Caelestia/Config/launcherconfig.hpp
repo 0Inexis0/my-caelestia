@@ -61,6 +61,12 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"command"_s, QStringList{ u"autocomplete"_s, u"calc"_s } },
             }),
             vmap({
+                { u"name"_s, markCtx(u"Codex"_s, u"launcher action"_s) },
+                { u"icon"_s, u"terminal"_s },
+                { u"description"_s, mark(u"Open Codex terminals (enter a number)"_s) },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"codex"_s } },
+            }),
+            vmap({
                 { u"name"_s, markCtx(u"Scheme"_s, u"launcher action"_s) },
                 { u"icon"_s, u"palette"_s },
                 { u"description"_s, mark(u"Change the current colour scheme"_s) },

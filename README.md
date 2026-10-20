@@ -131,6 +131,10 @@ inspection/rollback; they are not automatically pruned.
 
 ### Shell code (the QML shell itself)
 
+- **Codex launcher action** — open the Super menu, enter `.codex 3` and press Enter
+  to open three terminals running `codex` in your home directory. Select the Codex
+  action to fill in `.codex `; an empty count opens one terminal. Counts from 1 to
+  20 are supported, using your configured terminal. Requires `codex` on `PATH`.
 - **🤖 AI assistant page** (`modules/ai/`, `services/Ollama.qml`) — a built-in chat panel
   backed by a local [Ollama](https://ollama.com) server. Toggle it with **`Super+A`**. It
   lists your installed models, streams responses (including the model's "thinking" stream),
