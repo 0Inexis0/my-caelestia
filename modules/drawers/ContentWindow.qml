@@ -121,6 +121,8 @@ StyledWindow {
                 return true;
             if (s.ai)
                 return true;
+            if (panels.popouts.interactionActive)
+                return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
                 return true;
             return false;

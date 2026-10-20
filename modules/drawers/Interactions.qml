@@ -59,6 +59,26 @@ CustomMouseArea {
         }
     }
 
+    function dismissPopoutOnLeave(): void {
+        if (popouts.interactionActive || popouts.isDetached)
+            return;
+        if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
+            popouts.hasCurrent = false;
+            bar.closeTray();
+        }
+    }
+
+    function updatePopoutHover(x: real, y: real): void {
+        // Credential entry survives the size/position change from the network
+        // list, pointer exit, and movement over neighbouring bar icons.
+        if (popouts.interactionActive || popouts.isDetached)
+            return;
+        if (x < bar.implicitWidth)
+            bar.checkPopout(y);
+        else if (!inLeftPanel(panels.popoutsWrapper, x, y))
+            dismissPopoutOnLeave();
+    }
+
     anchors.fill: parent
     acceptedButtons: fullscreen ? Qt.NoButton : Qt.AllButtons
     hoverEnabled: true
@@ -78,10 +98,7 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
-            if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
-                popouts.hasCurrent = false;
-                bar.closeTray();
-            }
+            dismissPopoutOnLeave();
 
             if (Config.bar.showOnHover)
                 bar.isHovered = false;
@@ -238,12 +255,7 @@ CustomMouseArea {
         }
 
         // Show popouts on hover
-        if (x < bar.implicitWidth) {
-            bar.checkPopout(y);
-        } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
-            popouts.hasCurrent = false;
-            bar.closeTray();
-        }
+        updatePopoutHover(x, y);
     }
 
     // Monitor individual visibility changes

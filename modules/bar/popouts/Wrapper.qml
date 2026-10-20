@@ -27,6 +27,7 @@ Item {
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
+    readonly property alias interactionActive: popoutState.interactionActive
     property real currentCenter
 
     property string detachedMode

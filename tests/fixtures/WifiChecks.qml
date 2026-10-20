@@ -2,9 +2,13 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.bar as Bar
+import qs.modules.drawers as Drawers
 import qs.modules.nexus
+import qs.modules.bar.popouts as Popouts
 import qs.modules.bar.popouts
 import qs.modules.nexus.pages.network
 
@@ -42,6 +46,49 @@ PanelWindow {
     implicitHeight: 1
     color: "transparent"
     mask: Region {}
+
+    ScreenState {
+        id: hoverState
+
+        modelData: Quickshell.screens[0]
+    }
+    Popouts.Wrapper {
+        id: hoverPopouts
+
+        screen: Quickshell.screens[0]
+        offsetScale: 1
+        visible: false
+    }
+    Bar.BarWrapper {
+        id: hoverBar
+
+        screen: Quickshell.screens[0]
+        screenState: hoverState
+        popouts: hoverPopouts
+        fullscreen: false
+        visible: false
+    }
+    Bar.Bar {
+        id: hoverBarContent
+
+        screen: Quickshell.screens[0]
+        screenState: hoverState
+        popouts: hoverPopouts
+        fullscreen: false
+        visible: false
+    }
+    Drawers.Interactions {
+        id: hoverInteractions
+
+        screen: Quickshell.screens[0]
+        popouts: hoverPopouts
+        screenState: hoverState
+        panels: null
+        bar: hoverBar
+        borderThickness: 0
+        fullscreen: false
+        visible: false
+    }
 
     QtObject {
         id: testNetwork
@@ -91,6 +138,22 @@ PanelWindow {
         onTriggered: {
             try {
                 if (root.phase === 0) {
+                    hoverPopouts.currentName = "wirelesspassword";
+                    hoverPopouts.hasCurrent = true;
+                    root.check(hoverPopouts.interactionActive, "password dialog holds interaction");
+                    hoverInteractions.dismissPopoutOnLeave();
+                    root.check(hoverPopouts.hasCurrent, "pointer exit keeps password dialog open");
+                    hoverInteractions.updatePopoutHover(10000, 10000);
+                    root.check(hoverPopouts.hasCurrent, "moving outside resized dialog keeps it open");
+                    hoverInteractions.updatePopoutHover(-1, -100);
+                    hoverBarContent.checkPopout(-100);
+                    root.check(hoverPopouts.hasCurrent && hoverPopouts.currentName === "wirelesspassword", "bar hover cannot replace password dialog");
+                    hoverPopouts.close();
+                    root.check(!hoverPopouts.interactionActive, "explicit dismissal releases interaction");
+                    hoverPopouts.currentName = "network";
+                    hoverPopouts.hasCurrent = true;
+                    hoverInteractions.dismissPopoutOnLeave();
+                    root.check(!hoverPopouts.hasCurrent, "normal network popout still closes on pointer exit");
                     root.check(!quick.fields.advanced, "advanced settings initially collapsed");
                     root.check(!find(quick, "wifiConnect").disabled, "connect button accepts validation clicks");
                     find(quick, "wifiConnect").clicked();

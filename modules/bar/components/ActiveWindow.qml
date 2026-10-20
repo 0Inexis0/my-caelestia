@@ -49,7 +49,7 @@ Item {
             hoverEnabled: true
             onPositionChanged: {
                 const popouts = root.bar.popouts;
-                if (popouts.hasCurrent && popouts.currentName !== "activewindow")
+                if (popouts.hasCurrent && !popouts.interactionActive && popouts.currentName !== "activewindow")
                     popouts.hasCurrent = false;
             }
             onClicked: {

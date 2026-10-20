@@ -31,6 +31,9 @@ ColumnLayout {
     }
 
     function checkPopout(y: real): void {
+        if (popouts.interactionActive)
+            return;
+
         const ch = childAt(width / 2, y) as EntryWrapper;
 
         if (ch?.entryId !== "tray")
