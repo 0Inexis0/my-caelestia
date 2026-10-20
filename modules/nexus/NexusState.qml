@@ -23,6 +23,18 @@ QtObject {
     signal subPageOpened(idx: int)
     signal subPageClosed
 
+    function openWifiLogin(network: var): void {
+        // Own the selected values: scan updates may destroy an AccessPoint.
+        pendingWifiNetwork = {
+            ssid: network.ssid,
+            bssid: network.bssid || "",
+            security: network.security || "",
+            isSecure: network.isSecure
+        };
+        if (subPageIdxStack[subPageIdxStack.length - 1] !== 7)
+            openSubPage(7);
+    }
+
     function openSubPage(idx: int): void {
         subPageIdxStack.push(idx);
         subPageOpened(idx);

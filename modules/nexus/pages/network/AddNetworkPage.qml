@@ -7,21 +7,19 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
-import qs.utils
 import qs.modules.nexus.common
 
 PageBase {
     id: root
 
-    readonly property var network: nState.pendingWifiNetwork
-    readonly property bool enterprise: network ? Nmcli.isEnterprise(network) : securitySelect.active === enterpriseItem
-    readonly property bool secured: network ? network.isSecure : securitySelect.active !== noneItem
+    readonly property bool enterprise: securitySelect.active === enterpriseItem
+    readonly property bool secured: securitySelect.active !== noneItem
     property bool connecting: false
     property string errorMessage: ""
 
     function submit(): void {
         const ssid = ssidField.text;
-        if (root.connecting || !ssid || (root.secured && !credentials.valid))
+        if (root.connecting || !ssid || (root.secured && !credentials.validate()))
             return;
         root.errorMessage = "";
         root.connecting = true;
@@ -38,13 +36,11 @@ PageBase {
         };
         if (root.enterprise)
             Nmcli.connectEnterprise(ssid, credentials.credentials, hiddenToggle.checked, done);
-        else if (root.network)
-            NetworkConnection.connectWithPassword(root.network, credentials.password, done);
         else
             Nmcli.addHiddenNetwork(ssid, root.secured ? credentials.password : "", root.secured ? "wpa" : "none", hiddenToggle.checked, done);
     }
 
-    title: network ? Tr.tr("Connect to network") : Tr.tr("Add network")
+    title: Tr.tr("Add network")
     isSubPage: true
 
     ColumnLayout {
@@ -57,8 +53,7 @@ PageBase {
             id: ssidField
 
             Layout.fillWidth: true
-            text: root.network?.ssid ?? ""
-            readOnly: !!root.network || root.connecting
+            readOnly: root.connecting
             placeholderText: Tr.tr("Network name (SSID)")
             leadingIcon: "wifi"
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
@@ -68,16 +63,14 @@ PageBase {
         ToggleRow {
             id: hiddenToggle
 
-            visible: !root.network
             text: Tr.tr("Hidden network")
-            checked: !root.network
+            checked: true
             enabled: !root.connecting
         }
 
         SelectRow {
             id: securitySelect
 
-            visible: !root.network
             enabled: !root.connecting
             label: Tr.tr("Security")
             fallbackText: Tr.tr("WPA/WPA2/WPA3 Personal")
@@ -134,7 +127,7 @@ PageBase {
 
             TextButton {
                 text: Tr.tr("Connect")
-                enabled: !root.connecting && ssidField.text.length > 0 && (!root.secured || credentials.valid)
+                disabled: root.connecting || ssidField.text.length === 0
                 onClicked: root.submit()
             }
         }

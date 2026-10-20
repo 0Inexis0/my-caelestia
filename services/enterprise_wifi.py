@@ -33,8 +33,8 @@ def settings_for(data, variant):
         ("mschapv2",) if eap == "peap" else ("mschapv2", "pap")
     ):
         raise ValueError("Unsupported EAP method")
-    if not domain or any(c.isspace() for c in domain):
-        raise ValueError("Server domain is required")
+    if any(c.isspace() for c in domain):
+        raise ValueError("Invalid server domain")
     if ca:
         ca = str(Path(ca).expanduser().resolve(strict=True))
         if not Path(ca).is_file():
@@ -61,12 +61,13 @@ def settings_for(data, variant):
             "password": variant("s", password),
             "password-flags": variant("u", 0),
             "phase2-auth": variant("s", phase2),
-            "domain-suffix-match": variant("s", domain),
             "system-ca-certs": variant("b", not bool(ca)),
         },
         "ipv4": {"method": variant("s", "auto")},
         "ipv6": {"method": variant("s", "auto")},
     }
+    if domain:
+        settings["802-1x"]["domain-suffix-match"] = variant("s", domain)
     anonymous = string("anonymousIdentity").strip()
     if anonymous:
         settings["802-1x"]["anonymous-identity"] = variant("s", anonymous)

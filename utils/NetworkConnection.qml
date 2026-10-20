@@ -18,7 +18,14 @@ QtObject {
     function handleConnect(network, session, onPasswordNeeded): void {
         // Keep the current connection while the user is entering credentials.
         // NetworkManager switches devices when activation starts.
-        connectToNetwork(network, session, onPasswordNeeded);
+        if (!network)
+            return;
+        connectToNetwork({
+            ssid: network.ssid,
+            bssid: network.bssid || "",
+            security: network.security || "",
+            isSecure: network.isSecure
+        }, session, onPasswordNeeded);
     }
 
     function connectToNetwork(network, session, onPasswordNeeded): void {

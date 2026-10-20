@@ -12,8 +12,9 @@ ColumnLayout {
     id: root
 
     property bool enterprise: false
+    property bool advanced: false
     readonly property string password: passwordField.text
-    readonly property bool valid: password.length >= (enterprise ? 1 : 8) && (!enterprise || (identityField.text.trim().length > 0 && domainField.text.trim().length > 0))
+    readonly property bool valid: password.length >= (enterprise ? 1 : 8) && (!enterprise || (identityField.text.trim().length > 0))
     readonly property var credentials: ({
             identity: identityField.text.trim(),
             password: password,
@@ -25,6 +26,16 @@ ColumnLayout {
         })
 
     signal accepted
+
+    function validate(): bool {
+        identityField.isError = enterprise && !identityField.text.trim();
+        passwordField.isError = password.length < (enterprise ? 1 : 8);
+        if (identityField.isError)
+            identityField.forceActiveFocus();
+        else if (passwordField.isError)
+            passwordField.forceActiveFocus();
+        return valid;
+    }
 
     function clearSecret(): void {
         passwordField.text = "";
@@ -45,7 +56,8 @@ ColumnLayout {
         objectName: "wifiIdentity"
         Layout.fillWidth: true
         visible: root.enterprise
-        placeholderText: Tr.tr("Username / identity")
+        placeholderText: Tr.tr("Username")
+        errorText: Tr.tr("Enter your username")
         leadingIcon: "person"
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
         onAccepted: passwordField.forceActiveFocus()
@@ -59,14 +71,25 @@ ColumnLayout {
         placeholderText: Tr.tr("Password")
         leadingIcon: "key"
         echoMode: TextInput.Password
+        errorText: root.enterprise ? Tr.tr("Enter your password") : Tr.tr("Password must be at least 8 characters")
         inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
         onAccepted: root.accepted()
+    }
+
+    IconTextButton {
+        objectName: "wifiAdvanced"
+        visible: root.enterprise
+        Layout.alignment: Qt.AlignLeft
+        type: TextButton.Text
+        text: Tr.tr("Advanced settings")
+        icon: root.advanced ? "expand_less" : "expand_more"
+        onClicked: root.advanced = !root.advanced
     }
 
     SelectRow {
         id: eapSelect
 
-        visible: root.enterprise
+        visible: root.enterprise && root.advanced
         label: Tr.tr("Authentication")
         fallbackText: "PEAP"
         menuItems: [
@@ -86,7 +109,7 @@ ColumnLayout {
     SelectRow {
         id: phaseSelect
 
-        visible: root.enterprise && eapSelect.active === ttlsItem
+        visible: root.enterprise && root.advanced && eapSelect.active === ttlsItem
         label: Tr.tr("Inner authentication")
         fallbackText: "MSCHAPv2"
         menuItems: [
@@ -106,9 +129,9 @@ ColumnLayout {
 
         objectName: "wifiDomain"
         Layout.fillWidth: true
-        visible: root.enterprise
-        placeholderText: Tr.tr("Authentication server domain")
-        supportingText: Tr.tr("Use the domain supplied by your school or organisation")
+        visible: root.enterprise && root.advanced
+        placeholderText: Tr.tr("Server domain (optional)")
+        supportingText: Tr.tr("Use this if your school specifies a server domain")
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
         onAccepted: root.accepted()
     }
@@ -117,7 +140,7 @@ ColumnLayout {
         id: caField
 
         Layout.fillWidth: true
-        visible: root.enterprise
+        visible: root.enterprise && root.advanced
         placeholderText: Tr.tr("CA certificate path (optional)")
         supportingText: Tr.tr("Leave empty to use system certificates")
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
@@ -127,7 +150,7 @@ ColumnLayout {
         id: anonymousField
 
         Layout.fillWidth: true
-        visible: root.enterprise
+        visible: root.enterprise && root.advanced
         placeholderText: Tr.tr("Anonymous identity (optional)")
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
         onAccepted: root.accepted()

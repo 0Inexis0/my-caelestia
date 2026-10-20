@@ -339,7 +339,7 @@ ShellRoot {""", 1)
             screen: Quickshell.screens[0]
             pendingWifiNetwork: ({ ssid: "School Wi-Fi probe", security: "WPA2 802.1X", isSecure: true })
         }
-        ProbeNetwork.AddNetworkPage { nState: probeWifiNexus; width: 800; height: 700 }
+        ProbeNetwork.ConnectNetworkPage { nState: probeWifiNexus; width: 800; height: 700 }
         ProbeNetwork.AddNetworkPage { nState: probeNexus; width: 800; height: 700 }
         ProbePopouts.PopoutState { id: probePopouts; currentName: "wirelesspassword" }
         ProbePopouts.WirelessPassword { popouts: probePopouts; network: probeWifiNexus.pendingWifiNetwork }

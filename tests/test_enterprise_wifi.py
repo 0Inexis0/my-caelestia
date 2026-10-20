@@ -35,6 +35,16 @@ class EnterpriseTests(unittest.TestCase):
         self.assertFalse(settings['connection']['autoconnect'])
         self.assertNotIn('bssid', settings['802-11-wireless'])
 
+    def test_username_password_only_uses_system_trust_without_domain_gate(self):
+        data = dict(self.data)
+        data.pop('domain')
+        _, settings = wifi.settings_for(data, self.variant)
+        auth = settings['802-1x']
+        self.assertTrue(auth['system-ca-certs'])
+        self.assertNotIn('domain-suffix-match', auth)
+        self.assertEqual(auth['eap'], ['peap'])
+        self.assertEqual(auth['phase2-auth'], 'mschapv2')
+
     def test_ttls_custom_ca_anonymous_identity_hidden_and_literal_password(self):
         with tempfile.NamedTemporaryFile(suffix='.pem') as ca:
             settings = self.settings(eap='ttls', phase2='pap', caCert=ca.name,
@@ -49,7 +59,7 @@ class EnterpriseTests(unittest.TestCase):
         self.assertTrue(settings['802-11-wireless']['hidden'])
 
     def test_invalid_settings_are_rejected_before_dbus(self):
-        for changes in ({'identity': ''}, {'password': ''}, {'domain': ''},
+        for changes in ({'identity': ''}, {'password': ''}, {'domain': 'bad domain'},
                         {'eap': 'tls'}, {'phase2': 'pap'}, {'ssid': 'ü' * 17},
                         {'password': 'bad\0value'}, {'caCert': '/missing/school-ca.pem'}):
             with self.subTest(changes=changes), self.assertRaises((ValueError, OSError)):
@@ -107,6 +117,9 @@ class EnterpriseTests(unittest.TestCase):
             _, settings = wifi.settings_for(dict(self.data, eap=eap, phase2=phase2), GLib.Variant)
             connection = NM.SimpleConnection.new_from_dbus(GLib.Variant('a{sa{sv}}', settings))
             self.assertTrue(connection.verify())
+        _, settings = wifi.settings_for(dict(self.data, domain=''), GLib.Variant)
+        self.assertTrue(NM.SimpleConnection.new_from_dbus(
+            GLib.Variant('a{sa{sv}}', settings)).verify())
 
 
 if __name__ == '__main__':

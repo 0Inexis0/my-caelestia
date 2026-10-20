@@ -63,8 +63,7 @@ ItemList {
         onClicked: {
             if (!modelData.active) {
                 NetworkConnection.handleConnect(modelData, null, ap => {
-                    root.nState.pendingWifiNetwork = ap;
-                    root.nState.openSubPage(2);
+                    root.nState.openWifiLogin(ap);
                 });
                 root.networkSelected(modelData);
             } else {

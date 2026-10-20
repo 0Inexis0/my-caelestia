@@ -216,11 +216,13 @@ the [main caelestia repo](https://github.com/caelestia-dots/caelestia).
 ### School and enterprise Wi-Fi
 
 Select a WPA-Enterprise / 802.1X network in the network settings or bar popout.
-The sign-in form supports username/password with PEAP + MSCHAPv2 and TTLS +
-MSCHAPv2/PAP, including hidden networks via **Add network**. Use the EAP method
-and authentication server domain provided by your school or organisation. System
-CA certificates are used by default; a custom PEM/DER CA certificate path and an
-anonymous identity can be supplied. Certificate-based EAP-TLS is not included.
+The sign-in dialog initially shows only username and password, using PEAP +
+MSCHAPv2. **Advanced settings** offers TTLS + MSCHAPv2/PAP, an optional server
+domain, a custom PEM/DER CA certificate path and an anonymous identity. System
+CA certificates are used by default; certificate validation is not disabled when
+the domain is empty. Use your school's additional settings if its certificate
+is not trusted by the system. Hidden networks use the separate **Add network**
+page. Certificate-based EAP-TLS is not included.
 
 The helper requires `networkmanager` and `python-gobject` (included by bootstrap).
 Credentials travel through stdin and NetworkManager D-Bus, never command-line

@@ -66,7 +66,7 @@ ColumnLayout {
 
             required property Nmcli.AccessPoint modelData
             readonly property bool isConnecting: root.connectingToSsid === modelData.ssid
-            readonly property bool loading: networkItem.isConnecting
+            readonly property bool loading: networkItem.isConnecting || Nmcli.connectingSsid() === modelData.ssid
 
             visible: root.view === "wireless"
             Layout.preferredHeight: visible ? implicitHeight : 0
@@ -136,6 +136,7 @@ ColumnLayout {
                             root.connectingToSsid = networkItem.modelData.ssid;
                             NetworkConnection.handleConnect(networkItem.modelData, null, network => {
                                 // Password is required - show password dialog
+                                root.connectingToSsid = "";
                                 root.passwordNetwork = network;
                                 root.showPasswordDialog = true;
                                 root.popouts.currentName = "wirelesspassword";
@@ -356,6 +357,11 @@ ColumnLayout {
             }
         }
 
+        function onConnectionFailed(ssid: string): void {
+            if (root.connectingToSsid === ssid)
+                root.connectingToSsid = "";
+        }
+
         function onScanningChanged(): void {
             if (!Nmcli.scanning)
                 scanIcon.rotation = 0;
@@ -370,6 +376,7 @@ ColumnLayout {
             if (root.popouts.currentName !== "wirelesspassword" && root.showPasswordDialog) {
                 root.showPasswordDialog = false;
                 root.passwordNetwork = null;
+                root.connectingToSsid = "";
             }
         }
 
