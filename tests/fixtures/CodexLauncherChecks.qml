@@ -71,7 +71,7 @@ PanelWindow {
                     search.accepted();
                     root.check(root.commands.length === 3, "Enter launches exactly three terminals");
                     root.check(!testState.launcher, "valid launch closes launcher");
-                    root.check(JSON.stringify(root.commands[0]) === JSON.stringify(["foot", "--app-id=codex-test", "codex"]), "configured terminal arguments are preserved");
+                    root.check(JSON.stringify(root.commands[0]) === JSON.stringify(["foot", "--app-id=codex-test", `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "codex"]), "terminal arguments and colour wrapper are preserved");
                     testState.launcher = true;
                     search.text = ".codex 0";
                 } else if (root.phase === 3) {

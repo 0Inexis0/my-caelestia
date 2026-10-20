@@ -32,7 +32,7 @@ Singleton {
         const count = countForText(text);
         if (!count)
             return;
-        const command = [...GlobalConfig.general.apps.terminal, "codex"];
+        const command = [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "codex"];
         list.screenState.launcher = false;
         for (let i = 0; i < count; i++)
             root.execute(command);
