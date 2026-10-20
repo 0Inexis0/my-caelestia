@@ -41,7 +41,7 @@ Singleton {
         const count = countForText(text);
         return [{
             name: count ? (count === 1 ? Tr.tr("Open 1 Codex terminal") : Tr.tr("Open %1 Codex terminals").arg(count)) : Tr.tr("Enter a number from 1 to 20"),
-            desc: count ? Tr.tr("Open in a grid on the current workspace") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
+            desc: count ? Tr.tr("Open Codex windows in their own floating grid") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
             icon: count ? "terminal" : "info",
             onClicked: list => root.launch(list.search.text, list)
         }];

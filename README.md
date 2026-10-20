@@ -134,8 +134,10 @@ inspection/rollback; they are not automatically pruned.
 - **Codex launcher action** — open the Super menu, enter `.codex 3` and press Enter
   to open three terminals running `codex`. Select the Codex
   action to fill in `.codex `; an empty count opens one terminal. Counts from 1 to
-  20 are supported. The current workspace's tiled windows use an equal-sized grid
-  which reflows when windows open or close. Terminals use the same Hyprland
+  20 are supported. Only the terminals from this command open in an equal-sized
+  floating grid on the current workspace, above its existing windows. Existing
+  windows and the workspace's normal tiling remain unchanged; the grid is placed
+  once per command. Terminals use the same Hyprland
   terminal setting as Super+T and interactive fish startup; exiting Codex leaves
   a shell prompt. Requires the bundled Hyprland Lua configuration and `codex` on `PATH`.
 - **🤖 AI assistant page** (`modules/ai/`, `services/Ollama.qml`) — a built-in chat panel
