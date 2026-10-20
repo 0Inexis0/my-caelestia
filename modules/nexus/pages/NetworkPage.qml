@@ -110,7 +110,10 @@ PageBase {
             icon: "add"
             text: Tr.tr("Add network")
             disabled: !Nmcli.wifiEnabled
-            onClicked: root.nState.openSubPage(2) // Add network sub-page
+            onClicked: {
+                root.nState.pendingWifiNetwork = null;
+                root.nState.openSubPage(2);
+            }
         }
 
         // ---- VPN -------------------------------------------------------------

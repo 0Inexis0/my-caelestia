@@ -315,6 +315,8 @@ import qs.modules.session as ProbeSession
 import qs.modules.nexus as ProbeNexus
 import qs.modules.nexus.pages as ProbePages
 import qs.modules.nexus.pages.display as ProbeDisplay
+import qs.modules.nexus.pages.network as ProbeNetwork
+import qs.modules.bar.popouts as ProbePopouts
 
 ShellRoot {""", 1)
     at = text.rfind('}')
@@ -332,6 +334,15 @@ ShellRoot {""", 1)
                 Component.onCompleted: console.info("Fork feature probe loaded")
         ProbeComponents.ScreenState { id: probeState; modelData: Quickshell.screens[0]; ai: true }
         ProbeNexus.NexusState { id: probeNexus; screen: Quickshell.screens[0] }
+        ProbeNexus.NexusState {
+            id: probeWifiNexus
+            screen: Quickshell.screens[0]
+            pendingWifiNetwork: ({ ssid: "School Wi-Fi probe", security: "WPA2 802.1X", isSecure: true })
+        }
+        ProbeNetwork.AddNetworkPage { nState: probeWifiNexus; width: 800; height: 700 }
+        ProbeNetwork.AddNetworkPage { nState: probeNexus; width: 800; height: 700 }
+        ProbePopouts.PopoutState { id: probePopouts; currentName: "wirelesspassword" }
+        ProbePopouts.WirelessPassword { popouts: probePopouts; network: probeWifiNexus.pendingWifiNetwork }
         ProbeSidebar.Props { id: probeSidebarProps }
         ProbeSidebar.NotifDock { props: probeSidebarProps; screenState: probeState; width: 400; height: 500 }
         ProbeSession.Content { screenState: probeState }

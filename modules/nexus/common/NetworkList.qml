@@ -62,8 +62,10 @@ ItemList {
 
         onClicked: {
             if (!modelData.active) {
-                NetworkConnection.handleConnect(modelData);
-                currentSelected = true;
+                NetworkConnection.handleConnect(modelData, null, ap => {
+                    root.nState.pendingWifiNetwork = ap;
+                    root.nState.openSubPage(2);
+                });
                 root.networkSelected(modelData);
             } else {
                 // Active network: open its detail/settings sub-page.

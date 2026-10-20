@@ -17,6 +17,7 @@ QtObject {
     property string selectedNetworkSsid
     property string selectedEthernetInterface
     property bool networkDetailsFromSaved
+    property var pendingWifiNetwork: null
 
     signal close
     signal subPageOpened(idx: int)

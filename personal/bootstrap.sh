@@ -250,7 +250,7 @@ fi
 # --- preview before package, Git or configuration mutations -------------------
 BASE_PACKAGES=(hyprland xdg-desktop-portal-hyprland caelestia-shell)
 BUILD_PACKAGES=(base-devel cmake ninja python qt6-shadertools qt6-m3shapes-git)
-APP_PACKAGES=(foot wl-clipboard cliphist trash-cli gammastep polkit-gnome gnome-keyring thunar pavucontrol firefox)
+APP_PACKAGES=(foot wl-clipboard cliphist trash-cli gammastep polkit-gnome gnome-keyring thunar pavucontrol firefox networkmanager python-gobject)
 EXTRAS=()
 [ "$WANT_WE" = y ] && EXTRAS+=(linux-wallpaperengine-git)
 [ "$WANT_SDDM" = y ] && EXTRAS+=(caelestia-sddm-locklike-git)

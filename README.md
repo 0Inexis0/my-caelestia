@@ -212,3 +212,18 @@ All the real work is [Caelestia](https://github.com/caelestia-dots) by
 on top. For full shell documentation (configuration, all options, FAQ), see the
 [upstream README](https://github.com/caelestia-dots/shell). For the complete dotfiles, see
 the [main caelestia repo](https://github.com/caelestia-dots/caelestia).
+
+### School and enterprise Wi-Fi
+
+Select a WPA-Enterprise / 802.1X network in the network settings or bar popout.
+The sign-in form supports username/password with PEAP + MSCHAPv2 and TTLS +
+MSCHAPv2/PAP, including hidden networks via **Add network**. Use the EAP method
+and authentication server domain provided by your school or organisation. System
+CA certificates are used by default; a custom PEM/DER CA certificate path and an
+anonymous identity can be supplied. Certificate-based EAP-TLS is not included.
+
+The helper requires `networkmanager` and `python-gobject` (included by bootstrap).
+Credentials travel through stdin and NetworkManager D-Bus, never command-line
+arguments. NetworkManager stores successful profiles for the current user;
+failed attempts remove only the newly created temporary profile. Server trust
+settings follow the [NetworkManager 802.1X documentation](https://networkmanager.pages.freedesktop.org/NetworkManager/NetworkManager/settings-802-1x.html).

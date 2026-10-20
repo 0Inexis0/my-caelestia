@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Caelestia.I18n
+import qs.utils
 
 Singleton {
     id: root
@@ -24,6 +25,8 @@ Singleton {
     property list<string> savedConnectionSsids: []
     // Map of saved Wi-Fi SSID (lowercased) -> security type
     property var savedConnectionSecurity: ({})
+    property var savedConnectionUuids: ({})
+    property string enterpriseConnectingSsid: ""
 
     property var wifiConnectionQueue: []
     property int currentSsidQueryIndex: 0
@@ -53,7 +56,7 @@ Singleton {
     readonly property string nmcliCommandWifi: "wifi"
     readonly property string nmcliCommandRadio: "radio"
     readonly property string deviceStatusFields: "DEVICE,TYPE,STATE,CONNECTION"
-    readonly property string connectionListFields: "NAME,TYPE"
+    readonly property string connectionListFields: "UUID,TYPE,NAME"
     readonly property string wirelessSsidField: "802-11-wireless.ssid"
     readonly property string networkListFields: "SSID,SIGNAL,SECURITY"
     readonly property string networkDetailFields: "ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY"
@@ -183,6 +186,8 @@ Singleton {
     }
 
     function connectingSsid(): string {
+        if (root.enterpriseConnectingSsid)
+            return root.enterpriseConnectingSsid;
         const iface = root.wirelessInterfaces.find(i => isConnectingState(i.state));
         return iface ? iface.connection : "";
     }
@@ -429,6 +434,29 @@ Singleton {
         connectWireless(ssid, password, bssid, callback);
     }
 
+    function isEnterprise(network: var): bool {
+        return !!network && /802[.-]?1x|eap|enterprise/i.test(network.security || savedSecurityFor(network.ssid));
+    }
+
+    function connectEnterprise(ssid: string, credentials: var, hidden: bool, callback: var): void {
+        if (root.enterpriseConnectingSsid) {
+            callback?.({
+                success: false,
+                error: Tr.tr("A connection is already in progress")
+            });
+            return;
+        }
+        const proc = enterpriseProc.createObject(root, {
+            request: JSON.stringify(Object.assign({}, credentials, {
+                ssid: ssid,
+                hidden: hidden
+            })),
+            callback: callback
+        });
+        root.enterpriseConnectingSsid = ssid;
+        proc.running = true;
+    }
+
     function connectWireless(ssid: string, password: string, bssid: string, callback: var, retryCount: int): void {
         const hasBssid = bssid !== undefined && bssid !== null && bssid.length > 0;
         const retries = retryCount !== undefined ? retryCount : 0;
@@ -531,6 +559,7 @@ Singleton {
                 root.savedConnections = [];
                 root.savedConnectionSsids = [];
                 root.savedConnectionSecurity = {};
+                root.savedConnectionUuids = {};
                 if (callback)
                     callback([]);
                 return;
@@ -547,13 +576,14 @@ Singleton {
 
         for (const line of lines) {
             const parts = line.split(":");
-            if (parts.length >= 2) {
-                const name = parts[0];
+            if (parts.length >= 3) {
+                const uuid = parts[0];
                 const type = parts[1];
+                const name = parts.slice(2).join(":").replace(/\\([:\\])/g, "$1");
                 connections.push(name);
 
                 if (type === root.connectionTypeWireless) {
-                    wifiConnections.push(name);
+                    wifiConnections.push(uuid);
                 }
             }
         }
@@ -561,6 +591,7 @@ Singleton {
         root.savedConnections = connections;
 
         root.savedConnectionSecurity = {};
+        root.savedConnectionUuids = {};
 
         if (wifiConnections.length > 0) {
             root.wifiConnectionQueue = wifiConnections;
@@ -580,7 +611,7 @@ Singleton {
             const connectionName = root.wifiConnectionQueue[root.currentSsidQueryIndex];
             root.currentSsidQueryIndex++;
 
-            executeCommand(["-t", "-f", `${root.wirelessSsidField},${root.securityKeyMgmt}`, root.nmcliCommandConnection, "show", connectionName], result => {
+            executeCommand(["-t", "--escape", "no", "-f", `${root.wirelessSsidField},${root.securityKeyMgmt},connection.uuid`, root.nmcliCommandConnection, "show", connectionName], result => {
                 if (result.success) {
                     processSsidOutput(result.output);
                 }
@@ -600,11 +631,14 @@ Singleton {
 
         let ssid = "";
         let keyMgmt = "";
+        let uuid = "";
         for (const line of output.trim().split("\n")) {
             if (line.startsWith(ssidPrefix))
                 ssid = line.substring(ssidPrefix.length).trim();
             else if (line.startsWith(keyMgmtPrefix))
                 keyMgmt = line.substring(keyMgmtPrefix.length).trim();
+            else if (line.startsWith("connection.uuid:"))
+                uuid = line.substring("connection.uuid:".length).trim();
         }
 
         if (!ssid || ssid.length === 0)
@@ -622,6 +656,11 @@ Singleton {
         const security = Object.assign({}, root.savedConnectionSecurity);
         security[ssidLower] = keyMgmt;
         root.savedConnectionSecurity = security;
+        if (uuid) {
+            const uuids = Object.assign({}, root.savedConnectionUuids);
+            uuids[ssid] = uuid;
+            root.savedConnectionUuids = uuids;
+        }
     }
 
     function securityLabel(keyMgmt: string): string {
@@ -1451,6 +1490,53 @@ Singleton {
                 }
             }
         }, 2000);
+    }
+
+    Component {
+        id: enterpriseProc
+
+        Process {
+            id: proc
+
+            property string request
+            property var callback
+
+            command: ["python3", Paths.toLocalFile(Qt.resolvedUrl("enterprise_wifi.py"))]
+            stdinEnabled: true
+            onStarted: {
+                write(request + "\n");
+                request = "";
+            }
+            stdout: StdioCollector {
+                id: enterpriseOutput
+            }
+            onExited: {
+                Qt.callLater(() => {
+                    let result = {
+                        success: false,
+                        reason: "network"
+                    };
+                    try {
+                        result = JSON.parse(enterpriseOutput.text);
+                    } catch (_) {}
+                    if (!result.success) {
+                        if (result.reason === "dependencies")
+                            result.error = Tr.tr("Install python-gobject to connect to Enterprise Wi-Fi");
+                        else if (result.reason === "settings")
+                            result.error = Tr.tr("Check the username, server domain and CA certificate path");
+                        else
+                            result.error = Tr.tr("Connection failed. Check your credentials and EAP settings.");
+                    } else if (result.saved === false) {
+                        result.error = Tr.tr("Connected, but the profile could not be saved");
+                    }
+                    root.enterpriseConnectingSsid = "";
+                    root.loadSavedConnections(() => {});
+                    root.refreshOnConnectionChange();
+                    proc.callback?.(result);
+                    proc.destroy();
+                });
+            }
+        }
     }
 
     Component {
