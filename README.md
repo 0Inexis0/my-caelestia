@@ -132,9 +132,12 @@ inspection/rollback; they are not automatically pruned.
 ### Shell code (the QML shell itself)
 
 - **Codex launcher action** — open the Super menu, enter `.codex 3` and press Enter
-  to open three terminals running `codex` in your home directory. Select the Codex
+  to open three terminals running `codex`. Select the Codex
   action to fill in `.codex `; an empty count opens one terminal. Counts from 1 to
-  20 are supported, using your configured terminal. Requires `codex` on `PATH`.
+  20 are supported. The current workspace's tiled windows use an equal-sized grid
+  which reflows when windows open or close. Terminals use the same Hyprland
+  terminal setting as Super+T and interactive fish startup; exiting Codex leaves
+  a shell prompt. Requires the bundled Hyprland Lua configuration and `codex` on `PATH`.
 - **🤖 AI assistant page** (`modules/ai/`, `services/Ollama.qml`) — a built-in chat panel
   backed by a local [Ollama](https://ollama.com) server. Toggle it with **`Super+A`**. It
   lists your installed models, streams responses (including the model's "thinking" stream),

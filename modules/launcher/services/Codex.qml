@@ -32,17 +32,16 @@ Singleton {
         const count = countForText(text);
         if (!count)
             return;
-        const command = [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "codex"];
+        const command = ["hyprctl", "eval", `require("hyprland.codex").launch(${count})`];
         list.screenState.launcher = false;
-        for (let i = 0; i < count; i++)
-            root.execute(command);
+        root.execute(command);
     }
 
     function query(text: string): var {
         const count = countForText(text);
         return [{
             name: count ? (count === 1 ? Tr.tr("Open 1 Codex terminal") : Tr.tr("Open %1 Codex terminals").arg(count)) : Tr.tr("Enter a number from 1 to 20"),
-            desc: count ? Tr.tr("Press Enter to start Codex") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
+            desc: count ? Tr.tr("Open in a grid on the current workspace") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
             icon: count ? "terminal" : "info",
             onClicked: list => root.launch(list.search.text, list)
         }];

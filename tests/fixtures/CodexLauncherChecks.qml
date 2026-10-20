@@ -56,7 +56,6 @@ PanelWindow {
                 const list = root.find(content, "launcherAppList");
                 if (root.phase === 0) {
                     GlobalConfig.launcher.actionPrefix = ".";
-                    GlobalConfig.general.apps.terminal = ["foot", "--app-id=codex-test"];
                     Codex.execute = command => root.commands.push([...command]);
                     testState.launcher = true;
                     search.text = ".codex";
@@ -69,14 +68,14 @@ PanelWindow {
                     root.check(list.state === "codex", "count input selects Codex state");
                     root.check(list.count === 1 && list.currentItem.modelData.name.includes("3"), "count preview updates");
                     search.accepted();
-                    root.check(root.commands.length === 3, "Enter launches exactly three terminals");
+                    root.check(root.commands.length === 1, "Enter submits one batch");
                     root.check(!testState.launcher, "valid launch closes launcher");
-                    root.check(JSON.stringify(root.commands[0]) === JSON.stringify(["foot", "--app-id=codex-test", `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "codex"]), "terminal arguments and colour wrapper are preserved");
+                    root.check(JSON.stringify(root.commands[0]) === JSON.stringify(["hyprctl", "eval", 'require("hyprland.codex").launch(3)']), "batch preserves the requested count");
                     testState.launcher = true;
                     search.text = ".codex 0";
                 } else if (root.phase === 3) {
                     search.accepted();
-                    root.check(root.commands.length === 3 && testState.launcher, "invalid count keeps launcher open without spawning");
+                    root.check(root.commands.length === 1 && testState.launcher, "invalid count keeps launcher open without spawning");
                     for (const input of ["-1", "21", "1.5", "1e1", "3; touch /tmp/no", "2 3", "Infinity", "999999999999999999999"]) {
                         root.check(Codex.countForText(".codex " + input) === 0, "reject invalid count: " + input);
                     }
@@ -85,13 +84,13 @@ PanelWindow {
                     search.text = ".codex ";
                 } else if (root.phase === 4) {
                     list.currentItem.modelData.onClicked(list);
-                    root.check(root.commands.length === 4, "click starts one terminal by default");
+                    root.check(root.commands.length === 2 && root.commands[1][2].endsWith(".launch(1)"), "click starts one terminal by default");
                     GlobalConfig.launcher.actionPrefix = ">";
                     testState.launcher = true;
                     search.text = ">codex 2";
                 } else if (root.phase === 5) {
                     search.accepted();
-                    root.check(root.commands.length === 6, "custom action prefix supported");
+                    root.check(root.commands.length === 3 && root.commands[2][2].endsWith(".launch(2)"), "custom action prefix supported");
                     console.log("Codex launcher interaction checks passed");
                     console.log("Fork feature probe loaded");
                     stop();
