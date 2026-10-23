@@ -289,7 +289,7 @@ Item {
             Repeater {
                 model: Ollama.pendingImages
 
-                StyledClippingRect {
+                ClipRect {
                     id: thumb
 
                     required property string modelData

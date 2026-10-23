@@ -48,7 +48,7 @@ Item {
                 Repeater {
                     model: root.images
 
-                    StyledClippingRect {
+                    ClipRect {
                         id: attachment
 
                         required property string modelData

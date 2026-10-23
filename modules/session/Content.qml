@@ -52,7 +52,7 @@ Column {
     MaterialIcon {
         width: Tokens.sizes.session.button
         height: Tokens.sizes.session.button
-        visible: !sessionArt.visible
+        visible: !sessionArt.active
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         text: "power_settings_new"
@@ -60,18 +60,22 @@ Column {
         fontStyle: Tokens.font.icon.size(Tokens.sizes.session.button * 0.5).build()
     }
 
-    AnimatedImage {
+    Loader {
         id: sessionArt
-        visible: Config.paths.sessionGif !== "" && Config.paths.sessionGif !== "root:/assets/kurukuru.gif"
-        width: Tokens.sizes.session.button
-        height: Tokens.sizes.session.button
-        sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
+        active: Config.paths.sessionGif.trim() !== "" && Config.paths.sessionGif.trim() !== "root:/assets/kurukuru.gif"
+        visible: active
 
-        playing: visible && root.screenState.session
-        asynchronous: true
-        speed: Config.general.sessionGifSpeed
-        source: Paths.absolutePath(Config.paths.sessionGif)
-        fillMode: AnimatedImage.PreserveAspectFit
+        sourceComponent: AnimatedImage {
+            width: Tokens.sizes.session.button
+            height: Tokens.sizes.session.button
+            sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
+
+            playing: visible && root.screenState.session
+            asynchronous: true
+            speed: Config.general.sessionGifSpeed
+            source: Paths.absolutePath(Config.paths.sessionGif.trim())
+            fillMode: AnimatedImage.PreserveAspectFit
+        }
     }
 
     SessionButton {

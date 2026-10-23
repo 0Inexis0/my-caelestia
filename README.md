@@ -22,6 +22,7 @@ builds and installs **the QML shell and C++ plugin from the same commit** into a
 private release under `~/.local/share/my-caelestia/releases/`. It never replaces
 files owned by the system `caelestia-shell` package. The stable package supplies
 runtime dependencies; its older plugin is not used by the managed shell.
+Qt runtime dependencies include `qt6-multimedia`.
 
 The source checkout is `~/.local/share/my-caelestia/source` on branch `main`.
 The active configuration at `~/.config/quickshell/caelestia` points to a built
