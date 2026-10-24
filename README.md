@@ -1,4 +1,4 @@
-![my-caelestia: A familiar shell. A personal touch.](.github/repo-banner.svg)
+![my-caelestia: A familiar shell. A personal touch.](.github/repo-header.svg)
 
 # my-caelestia
 
