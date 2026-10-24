@@ -1,241 +1,28 @@
-WARNING: Im not a coding god so i used AI. Use at your own Risk.
+![my-caelestia: A familiar shell. A personal touch.](.github/repo-banner.svg)
 
+# my-caelestia
 
-<h1 align=center>my-caelestia</h1>
+My personal fork of [Caelestia Shell](https://github.com/caelestia-dots/shell), with a local AI panel, display controls and a reproducible desktop setup.
 
-<div align=center>
+[Install & update](GUIDE.md) · [Personal configuration](personal/) · [Upstream](https://github.com/caelestia-dots/shell) · [License](LICENSE)
 
-My personal fork of the [Caelestia](https://github.com/caelestia-dots) desktop shell —
-the [`caelestia-dots/shell`](https://github.com/caelestia-dots/shell) rice with my own
-fixes and features baked in, so I can reinstall my exact setup anywhere and still pull
-upstream updates without losing my changes.
+## At a glance
 
-![last commit](https://img.shields.io/github/last-commit/0Inexis0/my-caelestia?style=for-the-badge&labelColor=101418&color=9ccbfb)
-![based on caelestia](https://img.shields.io/badge/based%20on-caelestia--dots%2Fshell-b9c8da?style=for-the-badge&labelColor=101418)
+- **Make it yours.** Display settings, live Wallpaper Engine backgrounds and personal Hyprland configuration.
+- **A little extra.** Local Ollama chat, a playable sidebar Dino and a Codex terminal launcher.
+- **Keep it together.** Matched QML and C++ plugin releases, update checks and a previous-release rollback.
 
-</div>
+## Get started
 
-## Upstream and compiled plugin
-
-This fork tracks upstream `main`, including unreleased changes. `rice-update`
-builds and installs **the QML shell and C++ plugin from the same commit** into a
-private release under `~/.local/share/my-caelestia/releases/`. It never replaces
-files owned by the system `caelestia-shell` package. The stable package supplies
-runtime dependencies; its older plugin is not used by the managed shell.
-Qt runtime dependencies include `qt6-multimedia`.
-
-The source checkout is `~/.local/share/my-caelestia/source` on branch `main`.
-The active configuration at `~/.config/quickshell/caelestia` points to a built
-release. Normal `caelestia shell` commands continue to work. XDG directory
-overrides are respected. See [the integration review](docs/upstream-review-2026-09-14.md).
-
-## Differences from upstream at a glance
-
-| Type | Change | Summary | Where |
-|---|---|---|---|
-| ✨ Feature | Playable sidebar Dino | Click / Space / Up to jump, increasing speed, pause and saved high score; neutral power-menu and login artwork. | [Controls and setup](docs/dino-game.md) |
-| ✨ Feature | AI assistant page | Local [Ollama](https://ollama.com) chat panel (**`Super+A`**): streaming responses incl. thinking, multi-chat history, image attachments, context & temperature settings. No cloud, no API key. | `modules/ai/`, `services/Ollama.qml` |
-| ✨ Feature | Display settings page | New Nexus page: per-monitor resolution / refresh rate / scale, enable/disable outputs, auto-disable internal panel; persists to `monitors.d/`. | `modules/nexus/pages/DisplayPage.qml`, `…/display/` |
-| ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
-| ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + merge of fork/upstream, matching plugin build, load test and rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
-| ✨ Feature | Discord music rich presence | Optional in `bootstrap.sh`: installs `playerctl` + `music-discord-rpc`, reads "now playing" over MPRIS from whichever browser you name (default Brave) — works for Apple Music, Spotify, YT Music, anything playing as a tab. | `personal/bootstrap.sh` |
-| 🐛 Upstream fix | Bluetooth volume | Retains the `wpctl` workaround for Quickshell's missing route-volume writes when `volumeStep` is absent; underlying fix #808 is still open. | `services/Audio.qml` |
-| ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work — idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
-| ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
-
-Details below.
-
-## Install on a new machine — one command
-
-On a fresh Arch/CachyOS machine, paste this in a normal terminal (it asks for your sudo
-password once):
+For **Arch Linux / CachyOS**. Download the bootstrap script and preview its plan:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/main/personal/bootstrap.sh -o /tmp/rice.sh && bash /tmp/rice.sh
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/my-caelestia/main/personal/bootstrap.sh -o /tmp/rice.sh
+bash /tmp/rice.sh --dry-run
 ```
 
-Preview before installing with `bash /tmp/rice.sh --dry-run`. The installer checks
-Arch/CachyOS, required commands, RAM, free space and GitHub/AUR access, then shows
-packages and configuration paths before asking for confirmation. Use `--yes` to
-accept the plan automatically (interactive feature choices still apply).
+Run `bash /tmp/rice.sh` to install after reviewing the plan. Update with `rice-update`; see the [guide](GUIDE.md) for package updates, rollback and local edits.
 
-Installation steps show compact progress; full output goes to
-`~/.local/share/my-caelestia/logs/install-*.log` and failures show their log tail.
-Final checks cover configuration links, JSON, compiled plugins, Qt compatibility
-and the updater command. A running Wayland session also gets an IPC check;
-TTY installs explicitly leave the graphical start untested until login.
+> **Personal setup:** The installer changes packages and desktop configuration. Review it for your machine. The optional AI panel requires a local Ollama server and a downloaded model.
 
-Typing this into a VM or a machine without copy-paste? Same thing, short enough to type
-(no `<`, `|` or other keys that hide when the keyboard layout is wrong):
-
-```sh
-curl -L tinyurl.com/my-caelestia -o r; bash r
-```
-
-It installs Caelestia itself (packages, Hyprland, fonts), the extras my rice uses (SDDM
-login theme + Wallpaper Engine renderer), this fork, my config, and the `rice-update`
-command — then starts the shell. Done.
-
-> The AI page additionally needs [Ollama](https://ollama.com) running locally
-> (`ollama serve` + at least one pulled model). Everything else works without it.
-
-## Update — one command
-
-```sh
-rice-update
-```
-
-This saves local source edits, updates packages (`yay -Syu` / `paru -Syu` with
-`--noconfirm`, accepting default answers), fetches
-`origin/main` and `upstream/main`, and merges them in a temporary worktree.
-It builds a complete release, test-loads it with private state, and then switches
-the active configuration. Merge/build/load failures leave the running release
-selected. A failed launch restores the previous selection. GitHub sync uses a
-normal push and reports failure instead of silently force-pushing history.
-
-The terminal shows animated step bars and elapsed time. Full command output is
-saved to `~/.local/share/my-caelestia/logs/`; failures display diagnostic output.
-The sudo password prompt remains visible.
-
-- `rice-update --interactive-packages`: show package output and answer prompts manually.
-- `rice-update --skip-system`: build/sync without upgrading system packages.
-- `rice-update --rollback`: select and start the previous shell **and plugin**.
-- `rice-update --no-push`: update locally without publishing commits.
-- `rice-update --rebuild`: force a new release even if all build inputs match.
-- `rice-update --no-restart`: install for the next login; explicitly skip graphical
-  validation and restart (useful from a TTY).
-
-Building requires `base-devel`, `cmake`, `ninja`, `python`, `qt6-shadertools` and
-the runtime dependencies installed by bootstrap. An unchanged active release is
-reused without compilation or restart when its source revision, Qt/Quickshell,
-transitive build dependencies, environment and installed file hashes match.
-Older releases without this metadata are rebuilt once. Ninja builds show completed
-steps and a percentage; other phases use an activity bar.
-
-If the original Quickshell fails its Qt compatibility check (or a different
-provider owns `qs`), the updater builds `quickshell-git` directly with `makepkg`
-using the bundled AUR recipe in `personal/packages/quickshell-git/`. It never asks
-an AUR helper to resolve a Quickshell provider. Build failures leave the installed
-package intact. Installation requires sudo; replacing another provider shows
-pacman's conflict confirmation. The installed package is checked again before
-Caelestia is built. This repair also applies with `--skip-system`.
-A previous release cannot undo a system package/Qt upgrade.
-
-Edit shell source in `~/.local/share/my-caelestia/source`, then run `rice-update`.
-Runtime releases are generated snapshots. Keep personal configuration in
-`source/personal/config/`; installed symlinks continue to refer to those files.
-On migration, the old checkout is retained as `caelestia.before-managed-*` next
-to the active configuration. Builds and previous releases are retained for
-inspection/rollback; they are not automatically pruned.
-
-## What I changed vs upstream
-
-### Shell code (the QML shell itself)
-
-- **Codex launcher action** — open the Super menu, enter `.codex 3` and press Enter
-  to open three terminals running `codex`. Select the Codex
-  action to fill in `.codex `; an empty count opens one terminal. Counts from 1 to
-  20 are supported. Only the terminals from this command open in an equal-sized
-  floating grid on the current workspace, above its existing windows. Existing
-  windows and the workspace's normal tiling remain unchanged; the grid is placed
-  once per command. Terminals use the same Hyprland
-  terminal setting as Super+T and interactive fish startup; exiting Codex leaves
-  a shell prompt. Requires the bundled Hyprland Lua configuration and `codex` on `PATH`.
-- **🤖 AI assistant page** (`modules/ai/`, `services/Ollama.qml`) — a built-in chat panel
-  backed by a local [Ollama](https://ollama.com) server. Toggle it with **`Super+A`**. It
-  lists your installed models, streams responses (including the model's "thinking" stream),
-  keeps a persistent multi-chat history, supports image attachments for vision models, and
-  exposes context-length presets and a temperature control. Talks to `$OLLAMA_HOST` (default
-  `http://127.0.0.1:11434`) over `curl` — so it needs Ollama installed and running, but no
-  cloud/API key. Wired into the drawer/panel system (`modules/drawers/`, `Shortcuts.qml`,
-  Nexus page registries).
-- **🔧 Bluetooth volume fix** (`services/Audio.qml`) — the bar's volume slider, scroll and
-  mute did nothing on Bluetooth speakers. Bluetooth volume lives on the PipeWire device
-  *route*, which the node-level setter never touches, so it's now driven via `wpctl`
-  instead. Works for both analog (ALSA) and Bluetooth (bluez) outputs.
-- **🖥️ Display / Monitor settings page** (`modules/nexus/pages/DisplayPage.qml`,
-  `modules/nexus/pages/display/MonitorSection.qml`) — a new page in the Nexus settings app
-  to pick resolution, refresh rate and scale per monitor, enable/disable outputs, and
-  auto-disable the internal panel when an external is connected. Reads `hyprctl monitors`,
-  applies live via the Lua API, and persists to `~/.config/hypr/monitors.d/` (restored on
-  login by `execs.lua`). Toggling "Auto-disable" off now also re-enables the screen
-  (previously it left the display off and looked like it did nothing).
-
-### User-space config — see [`personal/`](personal/)
-
-- **🎮 Wallpaper Engine** integration in the wallpaper picker (`we-sync.sh`,
-  `wallpaper-posthook.sh`, `we-restore.sh`). Picking a Wallpaper Engine wallpaper runs
-  `linux-wallpaperengine` over the static background; picking a normal image stops it.
-  `we-restore.sh` re-launches it **at login** and **when a monitor is added/removed** (the
-  post-hook only fires on a wallpaper *change*), so a WE wallpaper survives reboots and
-  extends onto a newly-enabled screen automatically. If the renderer dies the moment it
-  starts — which is what an Arch soname bump does to the prebuilt `linux-wallpaperengine`
-  binary (ffmpeg 8 → 9 renamed `libavcodec.so.62` → `.63`) — the post-hook now catches it
-  and sends a desktop notification with the reason instead of silently doing nothing. Fix
-  is to rebuild the AUR package: `paru -S linux-wallpaperengine-git`.
-- **⌨️ Hyprland config** (Lua, not `.conf`) — German keyboard layout (`input.lua`), my
-  keybinds (`keybinds.lua`, incl. `Super+A` for the AI page), touchpad gestures
-  (`gestures.lua`, 4-finger-down = sleep), window rules (`rules.lua`: Bitwarden + PiP
-  floats, special workspaces), and startup + monitor management (`execs.lua`: gammastep
-  night light, the auto-disable companion to the Display page, and the WE restore hook).
-- **😴 Sleep = plain suspend, not hibernate** — this machine has zram-only swap (no disk
-  swap / `resume=`), so hibernation is impossible and any attempt wedged the session. The
-  idle action (`shell.json`, 10 min), the sleep gesture and the `Super+Shift+L` keybind all
-  use `systemctl suspend`. Idle chain: lock @3 min → screen off @5 min → suspend @10 min.
-- **🎨 Shell config** (`shell.json`, `cli.json`) — launcher `.` action prefix, bar/appearance
-  tweaks, wallpaper directory (`~/Pictures/Wallpapers` by default — `bootstrap.sh` asks and
-  patches this per machine), and the idle/suspend timeouts above.
-
-## What's in [`personal/`](personal/)
-
-| Path | What it is |
-|---|---|
-| `bootstrap.sh` | One-command fresh-machine installer (packages → fork → config). |
-| `manage.py` | Builds and activates matched QML/plugin releases; preserves the previous release. |
-| `install.sh` | Symlinks `personal/config/` into `~/.config` and installs the `rice-update` command. |
-| `update.sh` | The `rice-update` command — delegates to `manage.py` for merge/build/test/activation/rollback. |
-| `config/caelestia/shell.json`, `cli.json` | Shell (QML) and CLI config: bar, idle/suspend, wallpaper dir, post-hook. |
-| `config/caelestia/we-sync.sh`, `wallpaper-posthook.sh`, `we-restore.sh` | Wallpaper Engine integration (sync previews, switch on selection, restore on login/monitor change). |
-| `config/hypr/hyprland.lua` + `hypr/hyprland/*.lua` | Full Hyprland Lua config (entry point + all modules). |
-| `config/hypr/variables.lua` | App/keybind/visual variables (incl. `sleepGestureCmd`). |
-| `config/hypr/scripts/restart-shell.sh` | Debounced shell restart + WE restore on monitor add/remove. |
-| `config/hypr/monitors.d/*.conf` | Per-machine saved monitor modes — only linked for outputs actually present. |
-
-`install.sh` symlinks all of this into `~/.config` so the repo stays the single source of
-truth. Not tracked on purpose: `hypr/scheme/current.lua` (generated by the theme tool;
-seeded from the shipped `scheme/default.lua` on first launch) and the empty
-`hypr-user.lua` / `hypr-vars.lua` / `user-config.fish` stubs (auto-created on first run).
-
-## How this fork works
-
-`quickshell` loads the active release selected by
-`~/.config/quickshell/caelestia`. That release embeds its own QML import and helper
-paths, so its matching C++ plugin loads even when launched through the normal
-Caelestia CLI. Updating a system package does not overwrite these user-local
-files. The source repository and compiled releases are separate; activation
-switches the entire release rather than modifying files in a running shell.
-
-## Credits
-
-All the real work is [Caelestia](https://github.com/caelestia-dots) by
-[@soramane](https://ko-fi.com/soramane) and contributors — this is just my personal layer
-on top. For full shell documentation (configuration, all options, FAQ), see the
-[upstream README](https://github.com/caelestia-dots/shell). For the complete dotfiles, see
-the [main caelestia repo](https://github.com/caelestia-dots/caelestia).
-
-### School and enterprise Wi-Fi
-
-Select a WPA-Enterprise / 802.1X network in the network settings or bar popout.
-The sign-in dialog initially shows only username and password, using PEAP +
-MSCHAPv2. **Advanced settings** offers TTLS + MSCHAPv2/PAP, an optional server
-domain, a custom PEM/DER CA certificate path and an anonymous identity. System
-CA certificates are used by default; certificate validation is not disabled when
-the domain is empty. Use your school's additional settings if its certificate
-is not trusted by the system. Hidden networks use the separate **Add network**
-page. Certificate-based EAP-TLS is not included.
-
-The helper requires `networkmanager` and `python-gobject` (included by bootstrap).
-Credentials travel through stdin and NetworkManager D-Bus, never command-line
-arguments. NetworkManager stores successful profiles for the current user;
-failed attempts remove only the newly created temporary profile. Server trust
-settings follow the [NetworkManager 802.1X documentation](https://networkmanager.pages.freedesktop.org/NetworkManager/NetworkManager/settings-802-1x.html).
+Built on [Caelestia](https://github.com/caelestia-dots). Upstream credits and licensing remain in the [guide](GUIDE.md) and [LICENSE](LICENSE).
