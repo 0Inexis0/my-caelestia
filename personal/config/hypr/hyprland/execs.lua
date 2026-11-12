@@ -42,7 +42,7 @@ end)
 local function is_internal(name)
     -- Type-guard: monitor events can hand us a table (no usable .name) or nil,
     -- and calling :match on a non-string throws "attempt to call a nil value".
-    return type(name) == "string" and (name:match("^eDP") ~= nil or name:match("^LVDS") ~= nil)
+    return type(name) == "string" and (name:match("^eDP") ~= nil or name:match("^LVDS") ~= nil or name:match("^DSI") ~= nil)
 end
 
 local function is_external(name)
@@ -50,7 +50,7 @@ local function is_external(name)
     -- laptop panel. Only physical external connectors count for auto-disable.
     return type(name) == "string" and (
         name:match("^HDMI%-") ~= nil or name:match("^DP%-") ~= nil
-        or name:match("^DVI%-") ~= nil or name:match("^VGA%-") ~= nil
+        or name:match("^DVI%-") ~= nil or name:match("^VGA%-") ~= nil or name:match("^USB%-") ~= nil
     )
 end
 
@@ -128,7 +128,7 @@ end)
 
 -- Restore per-monitor settings saved by the settings app on startup, so
 -- resolution/refresh/scale survive a reboot. Each file
--- ~/.config/hypr/monitors.d/<name>.conf holds "mode,position,scale".
+-- ~/.config/hypr/monitors.d/<name>.conf holds "mode,position,scale[,mirror]" (older three-field files remain valid).
 local function load_saved_monitors()
     local dir = os.getenv("HOME") .. "/.config/hypr/monitors.d"
     local p = io.popen("ls " .. dir .. "/*.conf 2>/dev/null")
@@ -151,10 +151,13 @@ local function load_saved_monitors()
         if f then
             local spec = f:read("*l")
             f:close()
-            local mode, pos, scale = (spec or ""):match("^([^,]+),([^,]+),([^,]+)$")
+            local mode, pos, scale, mirror = (spec or ""):match("^([^,]+),([^,]+),([^,]+),([^,]*)$")
+            if not mode then
+                mode, pos, scale = (spec or ""):match("^([^,]+),([^,]+),([^,]+)$")
+            end
             if mode then
                 pcall(function()
-                    hl.monitor({ output = name, disabled = off[name] or false, mode = mode, position = pos, scale = tonumber(scale) })
+                    hl.monitor({ output = name, disabled = off[name] or false, mode = mode, position = pos, scale = tonumber(scale), mirror = mirror or "" })
                 end)
             end
         end

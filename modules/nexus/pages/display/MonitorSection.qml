@@ -8,6 +8,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components.controls
 import qs.modules.nexus.common
+import "../../../../utils/Display.js" as Display
 
 ColumnLayout {
     id: root
@@ -23,6 +24,8 @@ ColumnLayout {
 
     readonly property var availableModes: monitorData.availableModes ?? []
 
+    readonly property bool isMirrored: !!monitorData.mirrorOf && monitorData.mirrorOf !== "none"
+
     readonly property real scaleVal: (monitorData.scale ?? 0) > 0 ? monitorData.scale : 1
 
     readonly property string currentMode: {
@@ -33,9 +36,9 @@ ColumnLayout {
         }) ?? (availableModes[0] ?? `${w}x${h}@${r}Hz`);
     }
 
-    readonly property bool isInternal: name.startsWith("eDP") || name.startsWith("LVDS")
+    readonly property bool isInternal: name.startsWith("eDP") || name.startsWith("LVDS") || name.startsWith("DSI")
 
-    readonly property bool hasExternal: allMonitors.some(m => !m.name.startsWith("eDP") && !m.name.startsWith("LVDS"))
+    readonly property bool hasExternal: allMonitors.some(m => /^(HDMI-|DP-|DVI-|VGA-|USB-)/.test(m.name) && !m.disabled)
 
     readonly property string home: Quickshell.env("HOME")
 
@@ -43,38 +46,14 @@ ColumnLayout {
 
     property bool autoDisableEnabled: false
 
-    signal applied
 
-    // Apply a change at runtime (via the Lua API — `hyprctl keyword monitor`
-    // does not work with the Lua parser) AND persist it to monitors.d so it
-    // survives reboot. Manual disable is runtime-only (not persisted) to avoid
-    // booting into a black screen.
+    property var controller: null
+
     function applyMonitor(mode: string, scale: real, enabled: bool): void {
-        let lua;
-        let persist = "";
-        if (!enabled) {
-            lua = `hl.monitor({ output='${root.name}', disabled=true })`;
-        } else {
-            let modeStr;
-            // Always auto-position: changing resolution/refresh/scale should
-            // never move the monitor, and persisting an absolute coordinate can
-            // pin it to a stale offset from a previous layout.
-            const pos = "auto";
-            modeStr = root.isDisabled ? "preferred" : mode.replace(/Hz$/, "");
-            const scaleStr = (scale > 0 ? scale : 1).toFixed(2);
-            // `disabled=false` is required to actually re-enable a disabled output;
-            // setting mode/scale alone does not clear the disabled flag.
-            lua = `hl.monitor({ output='${root.name}', disabled=false, mode='${modeStr}', position='${pos}', scale=${scaleStr} })`;
-            persist = `${modeStr},${pos},${scaleStr}`;
-        }
-
-        Quickshell.execDetached(["hyprctl", "eval", lua]);
-        if (persist) {
-            const dir = `${root.home}/.config/hypr/monitors.d`;
-            Quickshell.execDetached(["sh", "-c", `mkdir -p '${dir}' && printf '%s' '${persist}' > '${dir}/${root.name}.conf'`]);
-        }
-        root.applied();
+        root.controller.apply({name: root.name, mode: mode, scale: scale, enabled: enabled});
     }
+
+    enabled: !controller || !controller.busy
 
     spacing: Tokens.spacing.extraSmall / 2
 
@@ -146,17 +125,25 @@ ColumnLayout {
         onSelected: item => root.applyMonitor(item.text, root.scaleVal, true)
     }
 
-    StepperRow {
+    Variants {
+        id: scaleVariants
+        model: Display.scales(root.monitorData.width, root.monitorData.height, root.scaleVal)
+
+        MenuItem {
+            required property real modelData
+            text: `${Math.round(modelData * 10000) / 100}%`
+        }
+    }
+
+    SelectRow {
         Layout.fillWidth: true
         last: true
-        enabled: !root.isDisabled
-        opacity: root.isDisabled ? 0.5 : 1
+        enabled: !root.isDisabled && !root.isMirrored
+        opacity: root.isDisabled || root.isMirrored ? 0.5 : 1
         label: Tr.tr("Scale")
-        subtext: Tr.tr("Display scaling factor")
-        value: root.scaleVal
-        from: 0.25
-        to: 3.0
-        stepSize: 0.25
-        onMoved: v => root.applyMonitor(root.currentMode, v, true)
+        subtext: root.isMirrored ? Tr.tr("Change scaling on the source display while mirroring") : Tr.tr("Display scaling factor")
+        menuItems: scaleVariants.instances
+        active: scaleVariants.instances.find(i => Math.abs(i.modelData - root.scaleVal) < 0.001) ?? null
+        onSelected: item => root.applyMonitor(root.currentMode, item.modelData, true)
     }
 }

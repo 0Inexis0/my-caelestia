@@ -11,10 +11,19 @@ DoubleSpinBox {
     property int repeatDecay: 50
     property int cLayer: 1
 
+    function stepDecimals(): int {
+        for (let digits = 0; digits < 8; digits++) {
+            const scaled = stepSize * Math.pow(10, digits);
+            if (Math.abs(scaled - Math.round(scaled)) < 0.0000001)
+                return digits;
+        }
+        return 8;
+    }
+
     function increase(): void {
         let newValue = Math.min(to, value + stepSize);
         // Round to avoid floating point precision errors
-        const decimals = stepSize < 1 ? Math.max(1, Math.ceil(-Math.log10(stepSize))) : 0;
+        const decimals = stepDecimals();
         newValue = Math.round(newValue * Math.pow(10, decimals)) / Math.pow(10, decimals);
         value = newValue;
         valueModified();
@@ -23,14 +32,14 @@ DoubleSpinBox {
     function decrease(): void {
         let newValue = Math.max(from, value - stepSize);
         // Round to avoid floating point precision errors
-        const decimals = stepSize < 1 ? Math.max(1, Math.ceil(-Math.log10(stepSize))) : 0;
+        const decimals = stepDecimals();
         newValue = Math.round(newValue * Math.pow(10, decimals)) / Math.pow(10, decimals);
         value = newValue;
         valueModified();
     }
 
     editable: true
-    decimals: stepSize < 1 ? Math.max(1, Math.ceil(-Math.log10(stepSize))) : 0
+    decimals: stepDecimals()
     spacing: Tokens.spacing.small
 
     implicitWidth: contentItem.implicitWidth + leftPadding + rightPadding
