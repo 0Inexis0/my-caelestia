@@ -41,7 +41,7 @@ overrides are respected. See [the integration review](docs/upstream-review-2026-
 | ✨ Feature | Wallpaper Engine in the picker | Pick live WE wallpapers like normal images; restored at login and on monitor hotplug; pinned to the dGPU on hybrid laptops. | `personal/config/caelestia/we-*.sh`, `wallpaper-posthook.sh` |
 | ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + merge of fork/upstream, matching plugin build, load test and rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
 | ✨ Feature | Discord music rich presence | Optional in `bootstrap.sh`: installs `playerctl` + `music-discord-rpc`, reads "now playing" over MPRIS from whichever browser you name (default Brave) : works for Apple Music, Spotify, YT Music, anything playing as a tab. | `personal/bootstrap.sh` |
-| 🐛 Upstream fix | Bluetooth volume | Retains the `wpctl` workaround for Quickshell's missing route-volume writes when `volumeStep` is absent; underlying fix #808 is still open. | `services/Audio.qml` |
+| 🐛 Compatibility workaround | Bluetooth volume | Retains the `wpctl` workaround pending a device test. Quickshell [#808](https://github.com/quickshell-mirror/quickshell/pull/808) was merged on 2026-09-25; builds containing that fix can use the upstream audio implementation after verification. | `services/Audio.qml` |
 | ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work : idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
 | ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
 

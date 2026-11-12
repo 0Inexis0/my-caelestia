@@ -10,17 +10,9 @@ echo "$NOW" > "$STAMP"
 sleep 1.5
 [ "$(cat "$STAMP" 2>/dev/null)" = "$NOW" ] || exit 0
 
-# Select by configuration, including managed releases launched with qs -p.
-qs -c caelestia kill 2>/dev/null || true
-for _ in $(seq 1 40); do
-    qs -c caelestia ipc show >/dev/null 2>&1 || break
-    sleep 0.2
-done
-if qs -c caelestia ipc show >/dev/null 2>&1; then
-    echo "Previous shell has not exited; skipping duplicate launch" >&2
-    exit 1
-fi
-caelestia shell -d
+# The CLI waits for old instances to exit before starting the replacement.
+# Keep Wallpaper Engine untouched if restarting the shell fails.
+caelestia shell -r -d || exit $?
 
 # Re-extend the Wallpaper Engine wallpaper onto the current set of outputs. The
 # wallpaper.postHook only fires when the wallpaper *changes*, not when a monitor
