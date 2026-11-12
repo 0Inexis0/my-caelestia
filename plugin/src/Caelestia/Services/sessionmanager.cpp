@@ -102,7 +102,7 @@ void SessionManager::suspend() {
 }
 
 void SessionManager::suspendThenHibernate() {
-    if (queryHibernateAvailable()) {
+    if (querySleepAvailable(u"CanSuspendThenHibernate"_s)) {
         callManager(u"SuspendThenHibernate"_s);
     } else {
         // Fall back to suspend when no hibernate
@@ -112,7 +112,7 @@ void SessionManager::suspendThenHibernate() {
 }
 
 void SessionManager::hibernate() {
-    if (queryHibernateAvailable()) {
+    if (querySleepAvailable(u"CanHibernate"_s)) {
         callManager(u"Hibernate"_s);
     } else {
         qCWarning(lcSessionManager) << "Hibernate unavailable, ignoring hibernate request";
@@ -139,16 +139,15 @@ std::optional<QDBusConnection> SessionManager::getSystemBus() {
     return bus;
 }
 
-bool SessionManager::queryHibernateAvailable() {
+bool SessionManager::querySleepAvailable(const QString& method) {
     auto bus = getSystemBus();
     if (!bus)
         return false;
 
-    const auto hibernateMsg =
-        QDBusMessage::createMethodCall(k_loginService, k_loginPath, k_loginIface, u"CanHibernate"_s);
+    const auto hibernateMsg = QDBusMessage::createMethodCall(k_loginService, k_loginPath, k_loginIface, method);
     const QDBusReply<QString> hibernateReply = bus->call(hibernateMsg);
     if (!hibernateReply.isValid()) {
-        qCWarning(lcSessionManager) << "Failed to query hibernate support:" << hibernateReply.error().message();
+        qCWarning(lcSessionManager) << "Failed to query" << method << ":" << hibernateReply.error().message();
     } else {
         const auto state = hibernateReply.value();
         return state == u"yes"_s || state == u"challenge"_s;
@@ -168,8 +167,11 @@ void SessionManager::call(const QString& path, const QString& iface, const QStri
     const auto* watcher = new QDBusPendingCallWatcher(bus->asyncCall(msg), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [method](QDBusPendingCallWatcher* self) {
         const QDBusPendingReply<> reply = *self;
-        if (reply.isError())
+        if (reply.isError()) {
             qCWarning(lcSessionManager) << "Call to" << method << "failed:" << reply.error().message();
+            Toaster::instance()->toast(
+                mark(u"Session action failed"_s), reply.error().message(), u"warning"_s, Toast::Type::Warning);
+        }
         self->deleteLater();
     });
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) watcher is parented and self-deletes

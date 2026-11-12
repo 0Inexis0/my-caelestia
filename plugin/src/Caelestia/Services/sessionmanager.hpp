@@ -41,7 +41,7 @@ private slots:
 
 private:
     [[nodiscard]] static std::optional<QDBusConnection> getSystemBus();
-    [[nodiscard]] static bool queryHibernateAvailable();
+    [[nodiscard]] static bool querySleepAvailable(const QString& method);
     void call(const QString& path, const QString& iface, const QString& method, const QVariantList& args = {});
     void callManager(const QString& method);
     void callSession(const QString& method);

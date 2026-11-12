@@ -42,7 +42,7 @@ overrides are respected. See [the integration review](docs/upstream-review-2026-
 | ✨ Feature | One-command install & update | `bootstrap.sh` sets up a fresh machine end-to-end; `rice-update` does system update + merge of fork/upstream, matching plugin build, load test and rollback. | `personal/bootstrap.sh`, `personal/update.sh` |
 | ✨ Feature | Discord music rich presence | Optional in `bootstrap.sh`: installs `playerctl` + `music-discord-rpc`, reads "now playing" over MPRIS from whichever browser you name (default Brave) : works for Apple Music, Spotify, YT Music, anything playing as a tab. | `personal/bootstrap.sh` |
 | 🐛 Compatibility workaround | Bluetooth volume | Retains the `wpctl` workaround pending a device test. Quickshell [#808](https://github.com/quickshell-mirror/quickshell/pull/808) was merged on 2026-09-25; builds containing that fix can use the upstream audio implementation after verification. | `services/Audio.qml` |
-| ⚙️ Config | Sleep = plain suspend | zram-only swap means hibernate can't work : idle action, sleep gesture and `Super+Shift+L` all use `systemctl suspend`. | `personal/config/`, `shell.json` |
+| ⚙️ Config | Sleep and hibernation | Idle, gesture and `Super+Shift+L` use suspend. Optional Btrfs/Limine hibernate setup: `personal/hibernate.py`. | `personal/config/`, `shell.json` |
 | ⚙️ Config | Hyprland (Lua) setup | Keybinds, touchpad gestures (4-finger-down = sleep), window rules, gammastep, startup & monitor management. | `personal/config/hypr/` |
 
 Details below.
@@ -180,10 +180,11 @@ inspection/rollback; they are not automatically pruned.
   (`gestures.lua`, 4-finger-down = sleep), window rules (`rules.lua`: Bitwarden + PiP
   floats, special workspaces), and startup + monitor management (`execs.lua`: gammastep
   night light, the auto-disable companion to the Display page, and the WE restore hook).
-- **😴 Sleep = plain suspend, not hibernate** : this machine has zram-only swap (no disk
-  swap / `resume=`), so hibernation is impossible and any attempt wedged the session. The
-  idle action (`shell.json`, 10 min), the sleep gesture and the `Super+Shift+L` keybind all
-  use `systemctl suspend`. Idle chain: lock @3 min → screen off @5 min → suspend @10 min.
+- **😴 Sleep and optional hibernation** : the idle action (`shell.json`, 10 min), sleep
+  gesture and `Super+Shift+L` use `systemctl suspend`. Idle chain: lock @3 min → screen
+  off @5 min → suspend @10 min. Hibernate additionally needs disk-backed swap and a
+  working boot-time resume path; zram alone cannot hold the image across power-off.
+  See [hibernation setup](docs/hibernation.md) for the opt-in CachyOS/Btrfs/Limine helper.
 - **🎨 Shell config** (`shell.json`, `cli.json`) : launcher `.` action prefix, bar/appearance
   tweaks, wallpaper directory (`~/Pictures/Wallpapers` by default : `bootstrap.sh` asks and
   patches this per machine), and the idle/suspend timeouts above.
