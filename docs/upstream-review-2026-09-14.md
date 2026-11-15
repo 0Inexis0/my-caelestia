@@ -1,5 +1,31 @@
 # Upstream integration review — 2026-09-14
 
+## Sync review — 2026-11-15
+
+- Base: fork `main` at `0befbbd5`; upstream `main` at `e72df8eb`.
+- Merge the one new upstream commit without rewriting either history. The only
+  upstream file change is `flake.lock`: CLI `6bde2df2` → `9ab901f5` and nixpkgs
+  `f9a75f41` → `d4f25a3e`. Quickshell and m3shapes pins are unchanged.
+- The [CLI comparison](https://github.com/caelestia-dots/cli/compare/6bde2df241ccc0cda4baa51216ebf017fe042eb7...9ab901f592917454da396ea012c50dd2c3f37003)
+  contains lock-file changes only. This sync does not replace shell behavior or
+  remove any local feature.
+- Keep the local Display page, mirroring, fractional scaling and monitor restart
+  handling. Upstream display PR #2293 is not part of this upstream revision.
+- Keep the Bluetooth `wpctl` workaround. Quickshell #808 has since merged, but
+  replacing the workaround still needs a Bluetooth device test of slider,
+  scroll and mute behavior on the user's runtime. No hardware test is claimed.
+- Local checks: 61 Python tests ran successfully with 7 skipped (graphical or
+  optional-runtime tests); all personal shell scripts passed `bash -n` and
+  `git diff --check` passed. Nix and the Qt/Quickshell build environment are not
+  installed in this check environment; build verification is left to PR CI.
+- Translation validation still reports six existing `qsTr()` uses in
+  `components/games/DinoGame.qml`, unchanged by the merge. This check must not be
+  bypassed to merge the sync. QML lint/format baseline failures are also outside
+  this lock-only change; the repository's path filters skip them on this PR.
+
+The sections below record the original September integration, not current CI
+results or current branch names.
+
 ## Baseline
 
 - Fork: `0Inexis0/my-caelestia`, custom branch `mine` at `3aa77ae6`.
