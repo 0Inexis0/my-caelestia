@@ -1,5 +1,20 @@
 # Upstream integration review — 2026-09-14
 
+## Translation repair — 2026-11-16
+
+- Upstream remains `e72df8eb`; continue draft PR #2 rather than creating another sync.
+- Replace the six Dino `qsTr()` calls with the supported `Tr.tr()` helper and
+  import `Caelestia.I18n`. The source strings, game logic and controls are unchanged.
+- Repository-wide translation validation now passes. Local Python tests: 61 ran,
+  54 passed, 7 skipped; personal shell syntax and whitespace checks pass.
+- QML convention validation still finds 39 pre-existing violations across the
+  repository. This repair does not change or relax any CI gate. QML format/lint,
+  builds and graphical Dino tests require the Qt/Quickshell environment, which
+  is absent locally. The Dino QML test now also requires the built Caelestia
+  module on its import path. Do not merge until the relevant checks pass.
+- Keep all hardware-sensitive local behavior. The Nix Quickshell pin already
+  includes #808, but this is not a Bluetooth runtime test.
+
 ## Sync review — 2026-11-15
 
 - Base: fork `main` at `0befbbd5`; upstream `main` at `e72df8eb`.
