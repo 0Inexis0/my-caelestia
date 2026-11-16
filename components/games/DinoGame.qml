@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtCore
+import Caelestia.I18n
 import "DinoPhysics.js" as Physics
 
 FocusScope {
@@ -25,7 +26,7 @@ FocusScope {
     implicitHeight: 250
     activeFocusOnTab: available
     Accessible.role: Accessible.Button
-    Accessible.name: qsTr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
+    Accessible.name: Tr.tr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
     Accessible.onPressAction: act()
 
     function act(): void {
@@ -175,7 +176,7 @@ FocusScope {
         anchors.topMargin: 8
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: root.gameOver ? qsTr("Game over · click to retry") : !root.started ? qsTr("All up to date. Time for a jump?") : !root.running ? qsTr("Paused · click to continue") : qsTr("Jump!")
+        text: root.gameOver ? Tr.tr("Game over · click to retry") : !root.started ? Tr.tr("All up to date. Time for a jump?") : !root.running ? Tr.tr("Paused · click to continue") : Tr.tr("Jump!")
         color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: 16
@@ -187,7 +188,7 @@ FocusScope {
         anchors.bottomMargin: 4
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: qsTr("Click / Space / ↑   ·   P pause")
+        text: Tr.tr("Click / Space / ↑   ·   P pause")
         color: root.muted
         font.family: root.fontFamily
         font.pixelSize: 12
