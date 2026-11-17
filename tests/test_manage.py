@@ -64,6 +64,37 @@ class OutputTests(unittest.TestCase):
             self.assertIn('[✗] Interrupted', visible.getvalue())
 
 
+class PackageUpdateTests(unittest.TestCase):
+    def test_only_use_extra_for_a_resolvable_firefox_language_conflict(self):
+        fail = m.subprocess.CompletedProcess([], 1, "unable to satisfy dependency 'firefox>=160.0.1' required by firefox-i18n-de")
+        ok = m.subprocess.CompletedProcess([], 0, 'firefox')
+        unrelated = m.subprocess.CompletedProcess([], 1, 'unrelated package failure')
+        for plans, expected in [([ok], None), ([unrelated], None), ([fail, fail], None),
+                                ([fail, ok], 'extra/firefox')]:
+            with self.subTest(plans=plans), patch.object(m.subprocess, 'run', side_effect=plans) as cmd:
+                self.assertEqual(m.firefox_update_target(), expected)
+                if len(plans) == 2:
+                    self.assertEqual(cmd.call_args.args[0][-1], 'extra/firefox')
+
+    def test_conflict_after_database_refresh_retries_the_full_upgrade(self):
+        failure = m.subprocess.CalledProcessError(1, 'yay')
+        with patch.object(m, 'firefox_update_target', side_effect=[None, 'extra/firefox']), \
+                patch.object(m, 'run', side_effect=[failure, None]) as cmd:
+            m.update_packages('yay', False)
+            first, retry = cmd.call_args_list
+            self.assertEqual(retry.args, (*first.args, 'extra/firefox'))
+            self.assertIn('-Syu', retry.args)
+            self.assertEqual(first.kwargs, retry.kwargs)
+
+    def test_interactive_unrelated_error_is_preserved(self):
+        failure = m.subprocess.CalledProcessError(1, 'paru')
+        with patch.object(m, 'firefox_update_target', return_value=None), \
+                patch.object(m, 'run', side_effect=failure) as cmd:
+            with self.assertRaises(m.subprocess.CalledProcessError):
+                m.update_packages('paru', True)
+            cmd.assert_called_once_with('paru', '-Syu', interactive=True)
+
+
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

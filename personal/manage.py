@@ -572,6 +572,39 @@ def candidate(source, data, update):
         run('git', '-C', source, 'worktree', 'remove', '--force', path)
 
 
+def firefox_update_target():
+    """Check the full transaction against the local sync databases."""
+    command = ['pacman', '-Sup', '--noconfirm', '--print-format', '%n']
+    options = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                   env={**os.environ, 'LC_ALL': 'C'})
+    plan = subprocess.run(command, **options)
+    if plan.returncode and re.search(
+            r"unable to satisfy dependency 'firefox>=[^']+' required by firefox-i18n-[\w-]+",
+            plan.stdout):
+        if subprocess.run([*command, 'extra/firefox'], **options).returncode == 0:
+            return 'extra/firefox'
+    return None
+
+
+def update_packages(helper, interactive):
+    args = [helper, '-Syu']
+    options = {'interactive': True} if interactive else {'stdin': subprocess.DEVNULL}
+    if not interactive:
+        args.extend(['--noconfirm', '--sudoflags', '-n', '--sudoloop'])
+    target = firefox_update_target()
+    if not target:
+        try:
+            run(*args, **options)
+            return
+        except subprocess.CalledProcessError:
+            # The helper may just have refreshed previously consistent sync databases.
+            target = firefox_update_target()
+            if not target:
+                raise
+    print('  Firefox wird für dieses Update passend zum Sprachpaket aus extra bezogen.', flush=True)
+    run(*args, target, **options)
+
+
 def main():
     global LOG
     parser = argparse.ArgumentParser(description=__doc__)
@@ -634,11 +667,7 @@ def main():
                 # Authenticate visibly before output is redirected; never hide a password prompt.
                 run('sudo', '-v', interactive=True)
             with step('Systempakete aktualisieren') if not args.interactive_packages else contextlib.nullcontext():
-                if args.interactive_packages:
-                    run(helper, '-Syu', interactive=True)
-                else:
-                    run(helper, '-Syu', '--noconfirm', '--sudoflags', '-n', '--sudoloop',
-                        stdin=subprocess.DEVNULL)
+                update_packages(helper, args.interactive_packages)
         repaired = ensure_quickshell(data)
         if update:
             if 'upstream' not in git(source, 'remote').splitlines():
