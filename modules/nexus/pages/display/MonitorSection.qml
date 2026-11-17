@@ -36,6 +36,9 @@ ColumnLayout {
         }) ?? (availableModes[0] ?? `${w}x${h}@${r}Hz`);
     }
 
+    readonly property string resolution: currentMode.split("@")[0]
+    readonly property var resolutions: [...new Set(availableModes.map(mode => mode.split("@")[0]))]
+
     readonly property bool isInternal: name.startsWith("eDP") || name.startsWith("LVDS") || name.startsWith("DSI")
 
     readonly property bool hasExternal: allMonitors.some(m => /^(HDMI-|DP-|DVI-|VGA-|USB-)/.test(m.name) && !m.disabled)
@@ -60,12 +63,12 @@ ColumnLayout {
     Variants {
         id: modeVariants
 
-        model: root.availableModes
+        model: root.availableModes.filter(mode => mode.split("@")[0] === root.resolution)
 
         MenuItem {
             required property string modelData
 
-            text: modelData
+            text: modelData.split("@")[1]
         }
     }
 
@@ -88,7 +91,16 @@ ColumnLayout {
         text: Tr.tr("Enabled")
         subtext: Tr.tr("Output active")
         checked: !root.isDisabled
-        onToggled: root.applyMonitor(root.currentMode, root.scaleVal, checked)
+        onToggled: root.controller.apply({name: root.name, enabled: checked})
+    }
+
+    ToggleRow {
+        Layout.fillWidth: true
+        text: Tr.tr("Main display")
+        subtext: Tr.tr("Preferred screen at login")
+        checked: !!root.monitorData.primary
+        enabled: !checked && !root.isDisabled && !root.isMirrored
+        onToggled: root.controller.apply({primary: root.name})
     }
 
     ToggleRow {
@@ -109,8 +121,30 @@ ColumnLayout {
                 // the screen back, otherwise the toggle appears to do nothing
                 // (and the manual "Enabled" toggle is the only way back on).
                 if (root.isDisabled)
-                    root.applyMonitor(root.currentMode, root.scaleVal, true);
+                    root.controller.apply({name: root.name, enabled: true});
             }
+        }
+    }
+
+    Variants {
+        id: resolutionVariants
+        model: root.resolutions
+        MenuItem {
+            required property string modelData
+            text: modelData
+        }
+    }
+
+    SelectRow {
+        Layout.fillWidth: true
+        enabled: !root.isDisabled
+        label: Tr.tr("Resolution")
+        menuItems: resolutionVariants.instances
+        active: resolutionVariants.instances.find(item => item.text === root.resolution) ?? null
+        onSelected: item => {
+            const modes = root.availableModes.filter(mode => mode.split("@")[0] === item.text);
+            const rate = root.currentMode.split("@")[1];
+            root.applyMonitor(modes.find(mode => mode.split("@")[1] === rate) ?? modes[0], root.scaleVal, true);
         }
     }
 
@@ -118,11 +152,11 @@ ColumnLayout {
         Layout.fillWidth: true
         enabled: !root.isDisabled
         opacity: root.isDisabled ? 0.5 : 1
-        label: Tr.tr("Resolution & refresh rate")
-        subtext: root.currentMode
+        label: Tr.tr("Refresh rate")
+        subtext: root.currentMode.split("@")[1] ?? ""
         menuItems: modeVariants.instances
-        active: modeVariants.instances.find(i => i.text === root.currentMode) ?? modeVariants.instances[0] ?? null
-        onSelected: item => root.applyMonitor(item.text, root.scaleVal, true)
+        active: modeVariants.instances.find(i => i.modelData === root.currentMode) ?? modeVariants.instances[0] ?? null
+        onSelected: item => root.applyMonitor(item.modelData, root.scaleVal, true)
     }
 
     Variants {

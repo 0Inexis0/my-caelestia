@@ -40,6 +40,13 @@ def apply(m, mode=None, scale=None, enabled=True, mirror=None):
             raise ValueError("The last active display must stay enabled")
         hypr("eval", f"hl.monitor({{ output={json.dumps(name)}, disabled=true }})")
         return
+    if m.get("disabled"):
+        saved = directory / "monitors.d" / f"{name}.conf"
+        if saved.is_file():
+            values = saved.read_text().strip().split(",")
+            if len(values) >= 3:
+                mode = mode or values[0]
+                scale = values[2] if scale is None else scale
     if mode is None:
         mode = (f'{m["width"]}x{m["height"]}@{m["refreshRate"]}'
                 if m.get("width", 0) > 0 and not m.get("disabled") else "preferred")
@@ -91,6 +98,9 @@ def layout(kind):
         raise ValueError("Connect an external display first")
     if kind not in ("internal", "external", "extend", "mirror"):
         raise ValueError("Unknown display layout")
+    layout_file = Path.home() / ".config/hypr/display-layout"
+    layout_file.parent.mkdir(parents=True, exist_ok=True)
+    layout_file.unlink(missing_ok=True)
     # Enable destinations before disabling anything; mirroring needs an active source.
     if kind != "external":
         for m in panels:
@@ -102,20 +112,37 @@ def layout(kind):
     if kind == "external":
         for m in panels:
             apply(m, enabled=False)
+            (Path.home() / f'.config/hypr/.auto-disable-{m["name"]}').touch()
     elif kind == "internal":
         for m in outputs:
             apply(m, enabled=False)
+    layout_file.write_text(kind + "\n")
 
 
 def main():
     try:
         request = json.loads(sys.argv[1])
-        if "layout" in request:
+        primary = Path.home() / ".config/hypr/primary-monitor"
+        if request.get("list"):
+            preferred = primary.read_text().strip() if primary.exists() else ""
+            print(json.dumps([dict(m, primary=m["name"] == preferred) for m in monitors()]))
+            return
+        if "primary" in request:
+            name = request["primary"]
+            if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or not any(
+                    m["name"] == name and not m.get("disabled") and
+                    m.get("mirrorOf") in ("none", "", None) for m in monitors()):
+                raise ValueError("Choose an active independent display")
+            primary.parent.mkdir(parents=True, exist_ok=True)
+            primary.write_text(name + "\n")
+        elif "layout" in request:
             layout(request["layout"])
         else:
             name = request.pop("name")
             m = next(m for m in monitors() if m["name"] == name)
             apply(m, **request)
+            if "enabled" in request and request["enabled"] != (not m.get("disabled")):
+                (primary.parent / "display-layout").unlink(missing_ok=True)
         print(json.dumps({"ok": True}))
     except Exception as error:
         print(json.dumps({"ok": False, "error": str(error)}))
