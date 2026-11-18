@@ -1,5 +1,24 @@
 # Upstream integration review — 2026-09-14
 
+## Fork reconciliation — 2026-11-18
+
+- Continue draft #2 by merging fork main `002589ae` into its prior head
+  `89c6e3c8`. Upstream is still `e72df8eb`; no new upstream behavior replaces
+  a local patch. Both histories are retained.
+- Preserve main's display persistence/login-display selection and Firefox
+  language-pack resolution. The merge had no conflicts.
+- Normalize declaration order/separators in the directly touched Dino and
+  display QML; use Qt 6.12's no-argument signal formatting. Game logic, display
+  operations and user-facing strings are unchanged by this style repair.
+- Local checks: 64 Python tests (57 passed, 7 runtime-dependent skips),
+  translations, personal shell syntax, Python compilation and whitespace pass.
+  The convention checker falls from 42 to 28 existing violations in other files;
+  it still fails and remains a merge gate.
+- This tree has not been built or graphically loaded: local Qt 6,
+  Quickshell and Nix are unavailable. Prior-head CI results do not verify this
+  integrated tree. Require fresh build, format, semantic-lint and runtime checks.
+  Keep the PR a draft; do not deploy or remove the Bluetooth workaround.
+
 ## Translation repair — 2026-11-16
 
 - Upstream remains `e72df8eb`; continue draft PR #2 rather than creating another sync.

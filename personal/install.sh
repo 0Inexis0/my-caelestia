@@ -62,7 +62,11 @@ if command -v hyprctl >/dev/null 2>&1 && present="$(hyprctl monitors all 2>/dev/
         [ -e "$f" ] || continue
         name="$(basename "$f" .conf)"
         if printf '%s\n' "$present" | grep -qxF "$name"; then
-            link "$f" "$DEST/hypr/monitors.d/$name.conf"
+            target="$DEST/hypr/monitors.d/$name.conf"
+            if [[ ! -e "$target" && ! -L "$target" ]]; then
+                mkdir -p "$(dirname "$target")"
+                cp "$f" "$target"
+            fi
         else
             echo "  skipped $name.conf (no monitor named '$name' on this machine)"
         fi

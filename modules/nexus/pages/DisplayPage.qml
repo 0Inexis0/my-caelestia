@@ -21,6 +21,8 @@ PageBase {
     // would otherwise make a disabled screen impossible to re-enable here).
     property var monitorList: []
 
+    readonly property string helper: decodeURIComponent(Qt.resolvedUrl("../../../assets/displayctl.py").toString().replace(/^file:\/\//, ""))
+
     function refresh(): void {
         refreshTimer.restart();
     }
@@ -35,19 +37,22 @@ PageBase {
 
         QtObject {
             id: displayController
+
             readonly property bool busy: applyProc.running
             property string error: ""
 
             function apply(request: var): void {
-                if (busy) return;
+                if (busy)
+                    return;
                 error = "";
-                applyProc.command = ["python3", decodeURIComponent(Qt.resolvedUrl("../../../assets/displayctl.py").toString().replace(/^file:\/\//, "")), JSON.stringify(request)];
+                applyProc.command = ["python3", root.helper, JSON.stringify(request)];
                 applyProc.running = true;
             }
         }
 
         Process {
             id: applyProc
+
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {
@@ -64,7 +69,7 @@ PageBase {
         Process {
             id: monProc
 
-            command: ["hyprctl", "monitors", "all", "-j"]
+            command: ["python3", root.helper, JSON.stringify({list: true})]
             running: true
             stdout: StdioCollector {
                 onStreamFinished: {

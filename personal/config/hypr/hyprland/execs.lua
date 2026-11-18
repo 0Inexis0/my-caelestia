@@ -97,9 +97,40 @@ local function restart_shell()
     hl.exec_cmd("bash ~/.config/hypr/scripts/restart-shell.sh")
 end
 
+local function preference(file)
+    local f = io.open(os.getenv("HOME") .. "/.config/hypr/" .. file)
+    if not f then return nil end
+    local value = f:read("*l")
+    f:close()
+    return value
+end
+
+local primary = preference("primary-monitor")
+if primary and primary:match("^[%w_.-]+$") then
+    hl.config({ cursor = { default_monitor = primary } })
+end
+
+local function panel_active()
+    for _, m in ipairs(hl.get_monitors()) do
+        if is_internal(m.name) and not m.disabled then return true end
+    end
+    return false
+end
+
+local function saved_rule(name)
+    local spec = preference("monitors.d/" .. name .. ".conf") or ""
+    local mode, pos, scale, mirror = spec:match("^([^,]+),([^,]+),([^,]+),?([^,]*)$")
+    return {output = name, disabled = false, mode = mode or "preferred",
+            position = pos or "auto", scale = tonumber(scale) or 1, mirror = mirror or ""}
+end
+
 hl.on("monitor.added", function(mon)
     local added = mon_name(mon)
     if added and not is_internal(added) and not is_external(added) then
+        return
+    end
+    if is_external(added) and preference("display-layout") == "internal" and panel_active() then
+        hl.monitor({output = added, disabled = true})
         return
     end
     if not (added and is_internal(added)) then
@@ -120,7 +151,7 @@ hl.on("monitor.removed", function(mon)
     end
     if not has_external(removed) then
         for _, name in ipairs(marked_internals()) do
-            hl.monitor({ output = name, disabled = false, mode = "preferred", position = "auto", scale = 1 })
+            hl.monitor(saved_rule(name))
         end
     end
     restart_shell()
@@ -147,19 +178,10 @@ local function load_saved_monitors()
     end
     for path in p:lines() do
         local name = path:match("/([^/]+)%.conf$")
-        local f = name and io.open(path, "r")
-        if f then
-            local spec = f:read("*l")
-            f:close()
-            local mode, pos, scale, mirror = (spec or ""):match("^([^,]+),([^,]+),([^,]+),([^,]*)$")
-            if not mode then
-                mode, pos, scale = (spec or ""):match("^([^,]+),([^,]+),([^,]+)$")
-            end
-            if mode then
-                pcall(function()
-                    hl.monitor({ output = name, disabled = off[name] or false, mode = mode, position = pos, scale = tonumber(scale), mirror = mirror or "" })
-                end)
-            end
+        if name then
+            local rule = saved_rule(name)
+            rule.disabled = off[name] or (is_external(name) and preference("display-layout") == "internal" and panel_active()) or false
+            hl.monitor(rule)
         end
     end
     p:close()

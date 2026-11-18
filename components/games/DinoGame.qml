@@ -20,14 +20,8 @@ FocusScope {
     property bool gameOver: false
     property double lastFrame: 0
     readonly property int bestScore: records.bestScore
-    signal dismiss()
 
-    implicitWidth: 400
-    implicitHeight: 250
-    activeFocusOnTab: available
-    Accessible.role: Accessible.Button
-    Accessible.name: Tr.tr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
-    Accessible.onPressAction: act()
+    signal dismiss
 
     function act(): void {
         if (!available)
@@ -50,6 +44,13 @@ FocusScope {
     function pause(): void {
         running = false;
     }
+
+    implicitWidth: 400
+    implicitHeight: 250
+    activeFocusOnTab: available
+    Accessible.role: Accessible.Button
+    Accessible.name: Tr.tr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
+    Accessible.onPressAction: act()
 
     onAvailableChanged: {
         if (!available) {
@@ -85,9 +86,11 @@ FocusScope {
 
     Settings {
         id: records
+
+        property int bestScore: 0
+
         location: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/caelestia-dino.ini"
         category: "Dino"
-        property int bestScore: 0
     }
 
     Timer {
@@ -120,6 +123,7 @@ FocusScope {
 
     Canvas {
         id: scene
+
         anchors.top: parent.top
         anchors.topMargin: 32
         width: parent.width
