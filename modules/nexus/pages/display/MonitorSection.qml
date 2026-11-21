@@ -128,9 +128,12 @@ ColumnLayout {
 
     Variants {
         id: resolutionVariants
+
         model: root.resolutions
+
         MenuItem {
             required property string modelData
+
             text: modelData
         }
     }
@@ -161,10 +164,12 @@ ColumnLayout {
 
     Variants {
         id: scaleVariants
+
         model: Display.scales(root.monitorData.width, root.monitorData.height, root.scaleVal)
 
         MenuItem {
             required property real modelData
+
             text: `${Math.round(modelData * 10000) / 100}%`
         }
     }

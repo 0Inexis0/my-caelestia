@@ -37,11 +37,13 @@ PageBase {
 
         QtObject {
             id: displayController
+
             readonly property bool busy: applyProc.running
             property string error: ""
 
             function apply(request: var): void {
-                if (busy) return;
+                if (busy)
+                    return;
                 error = "";
                 applyProc.command = ["python3", root.helper, JSON.stringify(request)];
                 applyProc.running = true;
@@ -50,6 +52,7 @@ PageBase {
 
         Process {
             id: applyProc
+
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {

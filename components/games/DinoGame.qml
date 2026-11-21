@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtCore
+import Caelestia.I18n
 import "DinoPhysics.js" as Physics
 
 FocusScope {
@@ -19,14 +20,8 @@ FocusScope {
     property bool gameOver: false
     property double lastFrame: 0
     readonly property int bestScore: records.bestScore
-    signal dismiss()
 
-    implicitWidth: 400
-    implicitHeight: 250
-    activeFocusOnTab: available
-    Accessible.role: Accessible.Button
-    Accessible.name: qsTr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
-    Accessible.onPressAction: act()
+    signal dismiss
 
     function act(): void {
         if (!available)
@@ -49,6 +44,13 @@ FocusScope {
     function pause(): void {
         running = false;
     }
+
+    implicitWidth: 400
+    implicitHeight: 250
+    activeFocusOnTab: available
+    Accessible.role: Accessible.Button
+    Accessible.name: Tr.tr("Dino game. Click, Space or Up to jump. P to pause. Escape to close.")
+    Accessible.onPressAction: act()
 
     onAvailableChanged: {
         if (!available) {
@@ -84,9 +86,11 @@ FocusScope {
 
     Settings {
         id: records
+
+        property int bestScore: 0
+
         location: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/caelestia-dino.ini"
         category: "Dino"
-        property int bestScore: 0
     }
 
     Timer {
@@ -119,6 +123,7 @@ FocusScope {
 
     Canvas {
         id: scene
+
         anchors.top: parent.top
         anchors.topMargin: 32
         width: parent.width
@@ -175,7 +180,7 @@ FocusScope {
         anchors.topMargin: 8
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: root.gameOver ? qsTr("Game over · click to retry") : !root.started ? qsTr("All up to date. Time for a jump?") : !root.running ? qsTr("Paused · click to continue") : qsTr("Jump!")
+        text: root.gameOver ? Tr.tr("Game over · click to retry") : !root.started ? Tr.tr("All up to date. Time for a jump?") : !root.running ? Tr.tr("Paused · click to continue") : Tr.tr("Jump!")
         color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: 16
@@ -187,7 +192,7 @@ FocusScope {
         anchors.bottomMargin: 4
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: qsTr("Click / Space / ↑   ·   P pause")
+        text: Tr.tr("Click / Space / ↑   ·   P pause")
         color: root.muted
         font.family: root.fontFamily
         font.pixelSize: 12
