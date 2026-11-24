@@ -62,6 +62,7 @@ Column {
 
     Loader {
         id: sessionArt
+
         active: Config.paths.sessionGif.trim() !== "" && Config.paths.sessionGif.trim() !== "root:/assets/kurukuru.gif"
         visible: active
 

@@ -1,5 +1,20 @@
 # Upstream integration review — 2026-09-14
 
+## Sync review — 2026-11-24
+
+- Merge upstream `1e44367` with both histories intact. Accept the CLI and
+  nixpkgs pin updates, locale normalization for parsed subprocess output,
+  and title animation suppression for small changes.
+- Include upstream [#1701](https://github.com/caelestia-dots/shell/pull/1701)
+  (Howdy/Visage). Legacy Howdy settings continue to apply unless the new keys
+  are set; Howdy remains the default provider. Password PAM is unchanged.
+- Include upstream [#2331](https://github.com/caelestia-dots/shell/pull/2331)
+  compiler caching. The existing image still runs the same checks uncached
+  until its regular rebuild provides the cache tools. Preserve the fork's
+  registry target and translation/updater checks.
+- Preserve the Display page, Bluetooth workaround, local updater, and QML
+  gate repairs.
+
 ## Fork reconciliation — 2026-11-18
 
 - Continue draft #2 by merging fork main `002589ae` into its prior head

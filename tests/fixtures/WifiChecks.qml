@@ -9,8 +9,8 @@ import qs.modules.bar as Bar
 import qs.modules.drawers as Drawers
 import qs.modules.nexus
 import qs.modules.bar.popouts as Popouts
-import qs.modules.bar.popouts
 import qs.modules.nexus.pages.network
+import "../../modules/bar/popouts" as LocalPopouts
 
 PanelWindow {
     id: root
@@ -107,12 +107,12 @@ PanelWindow {
     NexusState {
         id: testNexusState
     }
-    PopoutState {
+    LocalPopouts.PopoutState {
         id: testPopouts
 
         currentName: "wirelesspassword"
     }
-    WirelessPassword {
+    LocalPopouts.WirelessPassword {
         id: quick
 
         networkService: testNetwork
@@ -155,27 +155,27 @@ PanelWindow {
                     hoverInteractions.dismissPopoutOnLeave();
                     root.check(!hoverPopouts.hasCurrent, "normal network popout still closes on pointer exit");
                     root.check(!quick.fields.advanced, "advanced settings initially collapsed");
-                    root.check(!find(quick, "wifiConnect").disabled, "connect button accepts validation clicks");
-                    find(quick, "wifiConnect").clicked();
-                    root.check(root.calls === 0 && find(quick, "wifiIdentity").isError, "empty submission shows field error");
+                    root.check(!root.find(quick, "wifiConnect").disabled, "connect button accepts validation clicks");
+                    root.find(quick, "wifiConnect").clicked();
+                    root.check(root.calls === 0 && root.find(quick, "wifiIdentity").isError, "empty submission shows field error");
                     root.fill(quick);
                     root.check(quick.fields.valid, "username/password valid without a domain");
-                    root.check(find(quick, "wifiPassword").echoMode === TextInput.Password, "masked password");
-                    find(quick, "wifiConnect").clicked();
+                    root.check(root.find(quick, "wifiPassword").echoMode === TextInput.Password, "masked password");
+                    root.find(quick, "wifiConnect").clicked();
                     root.check(root.calls === 1 && quick.connecting, "quick connect starts request");
                     root.check(root.submitted.domain === "" && root.submitted.eap === "peap", "simple PEAP request");
-                    root.check(find(quick, "wifiConnect").disabled, "duplicate requests disabled");
+                    root.check(root.find(quick, "wifiConnect").disabled, "duplicate requests disabled");
                     root.reply({
                         success: false,
                         error: "Test authentication error"
                     });
                     root.check(!quick.connecting && quick.errorMessage === "Test authentication error", "failure displayed and retry enabled");
                     root.check(quick.fields.password === "x", "failure keeps inputs for correction");
-                    find(quick, "wifiAdvanced").clicked();
+                    root.find(quick, "wifiAdvanced").clicked();
                     root.check(quick.fields.advanced, "advanced toggle opens");
-                    find(quick, "wifiAdvanced").clicked();
+                    root.find(quick, "wifiAdvanced").clicked();
                     root.check(!quick.fields.advanced, "advanced toggle closes");
-                    find(quick, "wifiPassword").accepted();
+                    root.find(quick, "wifiPassword").accepted();
                     root.check(root.calls === 2, "Enter submits retry");
                     quick.closeDialog();
                     root.reply({
@@ -205,7 +205,7 @@ PanelWindow {
                     root.check(form.network.ssid === "School test", "settings preserves selected SSID");
                     form.networkService = testNetwork;
                     root.fill(form);
-                    find(form, "wifiConnect").clicked();
+                    root.find(form, "wifiConnect").clicked();
                     root.check(root.calls === 3 && form.connecting, "settings connect starts request");
                     root.reply({
                         success: true

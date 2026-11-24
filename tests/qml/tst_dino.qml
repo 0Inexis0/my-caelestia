@@ -1,17 +1,9 @@
-import QtQuick
-import QtTest
 import "../../components/games" as Games
 import "../../components/games/DinoPhysics.js" as Physics
+import QtQuick
+import QtTest
 
 TestCase {
-    name: "Dino"
-    when: windowShown
-    visible: true
-    width: 440
-    height: 300
-
-    Games.DinoGame { id: game; width: 400; height: 250 }
-
     function init() {
         game.available = true;
         game.running = false;
@@ -20,20 +12,29 @@ TestCase {
         game.game = Physics.create();
     }
 
-    function fixedRandom() { return 0.5; }
+    function fixedRandom() {
+        return 0.5;
+    }
     function test_jumpAndLanding() {
         const s = Physics.create();
         verify(Physics.jump(s));
         Physics.step(s, 0.02, fixedRandom);
         verify(s.y > 0);
         verify(!Physics.jump(s));
-        for (let i = 0; i < 90; i++) Physics.step(s, 0.01, fixedRandom);
+        for (let i = 0; i < 90; i++)
+            Physics.step(s, 0.01, fixedRandom);
         compare(s.y, 0);
         verify(Physics.jump(s));
     }
     function test_collisionAndRestart() {
         const s = Physics.create();
-        s.obstacles = [{ x: 60, width: 25, height: 35 }];
+        s.obstacles = [
+            {
+                x: 60,
+                width: 25,
+                height: 35
+            }
+        ];
         Physics.step(s, 0.01, fixedRandom);
         verify(s.over);
         verify(!Physics.jump(s));
@@ -51,7 +52,13 @@ TestCase {
     function test_clearObstacle() {
         const s = Physics.create();
         s.y = 65;
-        s.obstacles = [{ x: 60, width: 25, height: 35 }];
+        s.obstacles = [
+            {
+                x: 60,
+                width: 25,
+                height: 35
+            }
+        ];
         Physics.step(s, 0.01, fixedRandom);
         verify(!s.over);
     }
@@ -90,5 +97,18 @@ TestCase {
         verify(game.running);
         keyClick(Qt.Key_Escape);
         verify(!game.running);
+    }
+
+    name: "Dino"
+    when: windowShown
+    visible: true
+    width: 440
+    height: 300
+
+    Games.DinoGame {
+        id: game
+
+        width: 400
+        height: 250
     }
 }

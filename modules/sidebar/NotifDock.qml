@@ -92,8 +92,7 @@ Item {
             width: parent.width * 0.92
             height: Math.min(250, parent.height)
             visible: root.notifCount === 0
-            available: visible && root.screenState.sidebar
-                && !root.screenState.launcher && !root.screenState.ai
+            available: visible && root.screenState.sidebar && !root.screenState.launcher && !root.screenState.ai
             foreground: Colours.palette.m3primary
             muted: Colours.palette.m3outline
             background: Colours.palette.m3surfaceContainerLow

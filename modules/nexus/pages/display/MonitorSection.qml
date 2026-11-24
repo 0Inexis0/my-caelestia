@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import "../../../../utils/Display.js" as Display
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -8,7 +9,6 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components.controls
 import qs.modules.nexus.common
-import "../../../../utils/Display.js" as Display
 
 ColumnLayout {
     id: root
@@ -49,11 +49,15 @@ ColumnLayout {
 
     property bool autoDisableEnabled: false
 
-
     property var controller: null
 
     function applyMonitor(mode: string, scale: real, enabled: bool): void {
-        root.controller.apply({name: root.name, mode: mode, scale: scale, enabled: enabled});
+        root.controller.apply({
+            name: root.name,
+            mode: mode,
+            scale: scale,
+            enabled: enabled
+        });
     }
 
     enabled: !controller || !controller.busy
@@ -91,7 +95,10 @@ ColumnLayout {
         text: Tr.tr("Enabled")
         subtext: Tr.tr("Output active")
         checked: !root.isDisabled
-        onToggled: root.controller.apply({name: root.name, enabled: checked})
+        onToggled: root.controller.apply({
+            name: root.name,
+            enabled: checked
+        })
     }
 
     ToggleRow {
@@ -100,7 +107,9 @@ ColumnLayout {
         subtext: Tr.tr("Preferred screen at login")
         checked: !!root.monitorData.primary
         enabled: !checked && !root.isDisabled && !root.isMirrored
-        onToggled: root.controller.apply({primary: root.name})
+        onToggled: root.controller.apply({
+            primary: root.name
+        })
     }
 
     ToggleRow {
@@ -121,7 +130,10 @@ ColumnLayout {
                 // the screen back, otherwise the toggle appears to do nothing
                 // (and the manual "Enabled" toggle is the only way back on).
                 if (root.isDisabled)
-                    root.controller.apply({name: root.name, enabled: true});
+                    root.controller.apply({
+                        name: root.name,
+                        enabled: true
+                    });
             }
         }
     }

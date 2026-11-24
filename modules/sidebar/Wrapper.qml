@@ -14,11 +14,12 @@ Item {
     readonly property bool shouldBeActive: screenState.sidebar && Config.sidebar.enabled
     // Keep the lazy content after first use so a paused run survives closing the drawer.
     property bool wasOpened: false
+    property real offsetScale: shouldBeActive ? 0 : 1
+
     onShouldBeActiveChanged: {
         if (shouldBeActive)
             wasOpened = true;
     }
-    property real offsetScale: shouldBeActive ? 0 : 1
 
     visible: offsetScale < 1
     anchors.rightMargin: (-implicitWidth - 5) * offsetScale

@@ -11,9 +11,9 @@ Singleton {
 
     // Keep process execution replaceable for interaction tests.
     property var execute: command => Quickshell.execDetached({
-        command: command,
-        workingDirectory: Paths.home
-    })
+            command: command,
+            workingDirectory: Paths.home
+        })
 
     function countForText(text: string): int {
         const prefix = `${GlobalConfig.launcher.actionPrefix}codex `;
@@ -39,11 +39,13 @@ Singleton {
 
     function query(text: string): var {
         const count = countForText(text);
-        return [{
-            name: count ? (count === 1 ? Tr.tr("Open 1 Codex terminal") : Tr.tr("Open %1 Codex terminals").arg(count)) : Tr.tr("Enter a number from 1 to 20"),
-            desc: count ? Tr.tr("Open Codex windows in their own floating grid") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
-            icon: count ? "terminal" : "info",
-            onClicked: list => root.launch(list.search.text, list)
-        }];
+        return [
+            {
+                name: count ? (count === 1 ? Tr.tr("Open 1 Codex terminal") : Tr.tr("Open %1 Codex terminals").arg(count)) : Tr.tr("Enter a number from 1 to 20"),
+                desc: count ? Tr.tr("Open Codex windows in their own floating grid") : Tr.tr("Example: %1codex 3").arg(GlobalConfig.launcher.actionPrefix),
+                icon: count ? "terminal" : "info",
+                onClicked: list => root.launch(list.search.text, list)
+            }
+        ];
     }
 }

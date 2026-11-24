@@ -31,6 +31,15 @@ The active configuration at `~/.config/quickshell/caelestia` points to a built
 release. Normal `caelestia shell` commands continue to work. XDG directory
 overrides are respected. See [the integration review](docs/upstream-review-2026-09-14.md).
 
+## Lock screen face authentication
+
+The optional face providers are `Howdy` (default) and `Visage`. Choose one
+with `lock.faceAuthProvider`; the selected tool and its PAM module must
+already be installed. If the provider is absent, password login remains
+available. Legacy Howdy settings continue to work when their replacement
+keys are unset: `enableFaceAuth`, `maxFaceAuthTries` and
+`triggerFaceAuthOnWake`.
+
 ## Differences from upstream at a glance
 
 | Type | Change | Summary | Where |

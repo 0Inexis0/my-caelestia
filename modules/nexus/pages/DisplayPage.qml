@@ -2,13 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
-import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
 import qs.modules.nexus.pages.display
@@ -69,7 +67,9 @@ PageBase {
         Process {
             id: monProc
 
-            command: ["python3", root.helper, JSON.stringify({list: true})]
+            command: ["python3", root.helper, JSON.stringify({
+                    list: true
+                })]
             running: true
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -99,30 +99,12 @@ PageBase {
             target: Hyprland
         }
 
-        SelectRow {
-            Layout.fillWidth: true
-            visible: root.monitorList.some(m => /^(eDP|LVDS|DSI)/.test(m.name)) && root.monitorList.some(m => /^(HDMI-|DP-|DVI-|VGA-|USB-)/.test(m.name))
+        DisplayModeRow {
+            monitorList: root.monitorList
             enabled: !displayController.busy
-            first: true
-            last: true
-            label: Tr.tr("Display mode")
-            subtext: Tr.tr("Choose where to show your desktop")
-            fallbackText: Tr.tr("Choose")
-            menuItems: [internalMode, externalMode, extendMode, mirrorMode]
-            active: {
-                const panels = root.monitorList.filter(m => /^(eDP|LVDS|DSI)/.test(m.name));
-                const outputs = root.monitorList.filter(m => /^(HDMI-|DP-|DVI-|VGA-|USB-)/.test(m.name));
-                if (panels.every(m => m.disabled)) return externalMode;
-                if (outputs.every(m => m.disabled)) return internalMode;
-                if (outputs.length && outputs.every(m => !m.disabled && panels.some(p => p.name === m.mirrorOf))) return mirrorMode;
-                return extendMode;
-            }
-            onSelected: item => displayController.apply({layout: item.layout})
-
-            MenuItem { id: internalMode; property string layout: "internal"; text: Tr.tr("Laptop only") }
-            MenuItem { id: externalMode; property string layout: "external"; text: Tr.tr("External only") }
-            MenuItem { id: extendMode; property string layout: "extend"; text: Tr.tr("Extend") }
-            MenuItem { id: mirrorMode; property string layout: "mirror"; text: Tr.tr("Mirror") }
+            onLayoutRequested: mode => displayController.apply({
+                    layout: mode
+                })
         }
 
         StyledText {

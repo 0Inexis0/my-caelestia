@@ -10,10 +10,6 @@ import qs.modules.launcher.services
 PanelWindow {
     id: root
 
-    implicitWidth: 700
-    implicitHeight: 500
-    color: "transparent"
-    mask: Region {}
     property int phase: 0
     property var commands: []
 
@@ -33,13 +29,20 @@ PanelWindow {
         return null;
     }
 
+    implicitWidth: 700
+    implicitHeight: 500
+    color: "transparent"
+    mask: Region {}
+
     ScreenState {
         id: testState
+
         modelData: Quickshell.screens[0]
     }
 
     Launcher.Content {
         id: content
+
         anchors.fill: parent
         screenState: testState
         panels: null
@@ -60,7 +63,14 @@ PanelWindow {
                     testState.launcher = true;
                     search.text = ".codex";
                 } else if (root.phase === 1) {
-                    root.check(list.currentItem?.modelData.name === "Codex", "Codex is discoverable in actions: " + JSON.stringify({state: list.state, count: list.count, text: search.text, display: list.displayText, item: list.currentItem?.modelData.name, matches: Actions.query(".codex").map(a => a.name)}));
+                    root.check(list.currentItem?.modelData.name === "Codex", "Codex is discoverable in actions: " + JSON.stringify({
+                        state: list.state,
+                        count: list.count,
+                        text: search.text,
+                        display: list.displayText,
+                        item: list.currentItem?.modelData.name,
+                        matches: Actions.query(".codex").map(a => a.name)
+                    }));
                     search.accepted();
                     root.check(search.text === ".codex ", "action autocompletes count input");
                     search.text = ".codex 3";
