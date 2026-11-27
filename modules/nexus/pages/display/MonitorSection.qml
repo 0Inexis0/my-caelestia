@@ -28,13 +28,7 @@ ColumnLayout {
 
     readonly property real scaleVal: (monitorData.scale ?? 0) > 0 ? monitorData.scale : 1
 
-    readonly property string currentMode: {
-        const w = monitorData.width, h = monitorData.height, r = monitorData.refreshRate;
-        return availableModes.find(m => {
-            const match = m.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
-            return match && parseInt(match[1]) === w && parseInt(match[2]) === h && Math.abs(parseFloat(match[3]) - r) < 0.5;
-        }) ?? (availableModes[0] ?? `${w}x${h}@${r}Hz`);
-    }
+    readonly property string currentMode: Display.currentMode(monitorData)
 
     readonly property string resolution: currentMode.split("@")[0]
     readonly property var resolutions: [...new Set(availableModes.map(mode => mode.split("@")[0]))]

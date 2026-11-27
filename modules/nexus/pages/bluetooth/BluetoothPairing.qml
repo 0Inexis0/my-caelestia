@@ -17,6 +17,8 @@ PageBase {
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
 
+    property string requestedDevice: ""
+
     function setScan(on: bool): void {
         if (adapter?.enabled)
             adapter.discovering = on;
@@ -42,6 +44,15 @@ PageBase {
             }
 
             target: root.adapter
+        }
+
+        Connections {
+            function onConnected(path: string): void {
+                if (root.visible && root.requestedDevice === path)
+                    root.nState.closeSubPage();
+            }
+
+            target: BluetoothPairer
         }
 
         ConnectedRect {
@@ -83,8 +94,8 @@ PageBase {
 
                 required property BluetoothDevice modelData
                 required property int index
-                property real textOpacity: modelData?.pairing ? 0.5 : 1
-                property bool wasPairing
+                readonly property bool pairing: modelData?.pairing || (BluetoothPairer.busy && BluetoothPairer.devicePath === modelData?.dbusPath)
+                property real textOpacity: pairing ? 0.5 : 1
 
                 anchors.left: deviceList.list.contentItem.left
                 anchors.right: deviceList.list.contentItem.right
@@ -96,24 +107,15 @@ PageBase {
                     }
                 }
 
-                Connections {
-                    function onPairedChanged(): void {
-                        if (newDevice.wasPairing && newDevice.modelData?.paired)
-                            root.nState.closeSubPage();
-                    }
-
-                    target: newDevice.modelData
-                }
-
                 StateLayer {
                     radius: Tokens.rounding.extraSmall
                     bottomLeftRadius: newDevice.index === deviceList?.list.count - 1 ? Tokens.rounding.extraLarge : radius
                     bottomRightRadius: newDevice.index === deviceList?.list.count - 1 ? Tokens.rounding.extraLarge : radius
-                    disabled: newDevice.modelData?.pairing ?? false
+                    disabled: newDevice.pairing || BluetoothPairer.busy
 
                     onClicked: {
-                        newDevice.modelData?.pair();
-                        newDevice.wasPairing = true;
+                        root.requestedDevice = newDevice.modelData.dbusPath;
+                        BluetoothPairer.start(newDevice.modelData);
                     }
                 }
 
@@ -147,7 +149,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: newDevice.modelData?.pairing ? Tr.tr("Pairing...") : (newDevice.modelData?.address ?? "")
+                            text: newDevice.pairing ? Tr.tr("Pairing...") : (newDevice.modelData?.address ?? "")
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
@@ -158,7 +160,7 @@ PageBase {
                     Loader {
                         asynchronous: true
                         active: opacity > 0
-                        opacity: newDevice.modelData?.pairing ? 1 : 0
+                        opacity: newDevice.pairing ? 1 : 0
 
                         sourceComponent: LoadingIndicator {
                             implicitSize: Math.round(Tokens.font.icon.medium.pointSize * 1.3)

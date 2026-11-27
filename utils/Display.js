@@ -1,3 +1,20 @@
+function currentMode(monitor) {
+    const size = monitor.width + "x" + monitor.height;
+    const actual = monitor.refreshRate;
+    let closest = size + "@" + actual + "Hz";
+    if (monitor.disabled) return monitor.availableModes?.[0] ?? closest;
+    let distance = 0.0051; // availableModes rounds Hz to two decimals
+    for (const mode of monitor.availableModes ?? []) {
+        const [resolution, rate] = mode.split("@");
+        const delta = Math.abs(parseFloat(rate) - actual);
+        if (resolution === size && delta < distance) {
+            closest = mode;
+            distance = delta;
+        }
+    }
+    return closest;
+}
+
 // Hyprland requires integer logical dimensions. Keep the exact ratios rather
 // than rounding them to two decimal places before passing them to the compositor.
 function scales(width, height, current) {

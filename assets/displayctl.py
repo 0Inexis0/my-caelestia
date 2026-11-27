@@ -77,7 +77,7 @@ def apply(m, mode=None, scale=None, enabled=True, mirror=None):
         mode_ok = mode in ("preferred", "highres", "highrr")
         if actual and not mode_ok:
             size, refresh = mode.split("@")
-            mode_ok = size == f'{actual["width"]}x{actual["height"]}' and abs(actual["refreshRate"] - float(refresh)) < 0.6
+            mode_ok = size == f'{actual["width"]}x{actual["height"]}' and abs(actual["refreshRate"] - float(refresh)) <= 0.0051
         if actual and not actual.get("disabled") and abs(actual["scale"] - scale) < 0.001 and actual_mirror == mirror and mode_ok:
             break
     else:
@@ -86,7 +86,9 @@ def apply(m, mode=None, scale=None, enabled=True, mirror=None):
     target.parent.mkdir(parents=True, exist_ok=True)
     # Replace the file, including legacy links into the source checkout.
     temporary = target.with_suffix(".conf.tmp")
-    temporary.write_text(f"{mode},auto,{scale:.8g},{mirror}\n")
+    # The original login reader expects exactly three fields on independent outputs.
+    suffix = f",{mirror}" if mirror else ""
+    temporary.write_text(f"{mode},auto,{scale:.8g}{suffix}\n")
     os.replace(temporary, target)
 
 

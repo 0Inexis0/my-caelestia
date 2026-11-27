@@ -74,7 +74,8 @@ PageBase {
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {
-                        root.monitorList = JSON.parse(text);
+                        const result = JSON.parse(text);
+                        root.monitorList = Array.isArray(result) ? result : [];
                     } catch (e) {
                         root.monitorList = [];
                     }

@@ -71,7 +71,8 @@ ColumnLayout {
             id: device
 
             required property BluetoothDevice modelData
-            readonly property bool loading: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
+            readonly property bool pairing: BluetoothPairer.busy && BluetoothPairer.devicePath === modelData.dbusPath
+            readonly property bool loading: pairing || modelData.pairing || modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
 
             Layout.fillWidth: true
             Layout.rightMargin: Tokens.padding.extraSmall
@@ -129,8 +130,13 @@ ColumnLayout {
 
                 StateLayer {
                     color: device.modelData.state === BluetoothDeviceState.Connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
-                    disabled: device.loading
-                    onClicked: device.modelData.connected = !device.modelData.connected
+                    disabled: device.loading || (BluetoothPairer.busy && !device.modelData.paired)
+                    onClicked: {
+                        if (device.modelData.paired || device.modelData.connected)
+                            device.modelData.connected = !device.modelData.connected;
+                        else
+                            BluetoothPairer.start(device.modelData);
+                    }
                 }
 
                 MaterialIcon {

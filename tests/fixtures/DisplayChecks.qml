@@ -49,6 +49,9 @@ FloatingWindow {
                     root.check(Math.abs(size[0] / factor - Math.round(size[0] / factor)) <= 0.0001 && Math.abs(size[1] / factor - Math.round(size[1] / factor)) <= 0.0001, "Invalid logical dimensions");
                 }
             }
+            const monitor = { width: 1920, height: 1080, refreshRate: 59.941,
+                availableModes: ["1920x1080@60.00Hz", "1920x1080@59.94Hz"] };
+            root.check(Display.currentMode(monitor) === monitor.availableModes[1], "59.94 Hz was rounded to 60 Hz");
             scale.increase();
             root.check(scale.value === 1.25 && scale.decimals >= 2, "1.25 lost precision");
             scale.increase();

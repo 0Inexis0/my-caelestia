@@ -8,6 +8,9 @@
   ddcutil,
   brightnessctl,
   networkmanager,
+  python3,
+  gtk3,
+  gobject-introspection,
   lm_sensors,
   swappy,
   wl-clipboard,
@@ -43,6 +46,7 @@
       ddcutil
       brightnessctl
       networkmanager
+      (python3.withPackages (p: [p.pygobject3]))
       lm_sensors
       swappy
       wl-clipboard
@@ -111,8 +115,8 @@ in
     pname = "caelestia-shell${lib.optionalString debug "-debug"}";
     src = ./..;
 
-    nativeBuildInputs = [cmake ninja makeWrapper qt6.wrapQtAppsHook];
-    buildInputs = [qs extras plugin xkeyboard-config qt6.qtbase];
+    nativeBuildInputs = [cmake ninja makeWrapper gobject-introspection qt6.wrapQtAppsHook];
+    buildInputs = [qs extras plugin xkeyboard-config qt6.qtbase gtk3];
     propagatedBuildInputs = runtimeDeps;
 
     cmakeFlags =
@@ -136,6 +140,7 @@ in
     postInstall = ''
       makeWrapper ${qs}/bin/qs $out/bin/caelestia-shell \
         --prefix PATH : "${lib.makeBinPath runtimeDeps}" \
+        --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
         --set FONTCONFIG_FILE "${fontconfig}" \
         --set CAELESTIA_LIB_DIR ${extras}/lib \
         --set CAELESTIA_XKB_RULES_PATH ${xkeyboard-config}/share/xkeyboard-config-2/rules/base.lst \

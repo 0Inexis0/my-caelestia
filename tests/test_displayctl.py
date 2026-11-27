@@ -29,7 +29,14 @@ class DisplayTests(unittest.TestCase):
                 lua = ipc.call_args.args[1]
                 self.assertIn(f'scale={scale}', lua)
                 saved = (Path(directory) / '.config/hypr/monitors.d/DP-2.conf').read_text()
+                self.assertEqual(len(saved.strip().split(',')), 3)
                 self.assertAlmostEqual(float(saved.split(',')[2]), scale, places=6)
+
+    def test_60hz_does_not_confirm_a_rejected_5994hz_request(self):
+        m = monitor('DP-2')
+        with patch.object(display, 'hypr'), patch.object(display, 'monitors', return_value=[m]), patch.object(display.time, 'sleep'):
+            with self.assertRaisesRegex(RuntimeError, 'not accepted'):
+                display.apply(m, mode='1920x1080@59.94')
 
     def test_rejected_scale_does_not_overwrite_saved_configuration(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(display.Path, 'home', return_value=Path(directory)), patch.object(display, 'hypr', return_value='ok'), patch.object(display, 'monitors', return_value=[monitor('DP-2')]), patch.object(display.time, 'sleep'):
