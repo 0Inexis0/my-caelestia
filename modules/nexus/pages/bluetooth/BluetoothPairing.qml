@@ -86,7 +86,7 @@ PageBase {
             list.anchors.top: scanIndicator.bottom
 
             model: ScriptModel {
-                values: Bluetooth.devices.values.filter(d => !d.bonded).sort((a, b) => (b.pairing - a.pairing) || (!a.deviceName - !b.deviceName) || a.name.localeCompare(b.name))
+                values: Bluetooth.devices.values.filter(d => !d.paired).sort((a, b) => (b.pairing - a.pairing) || (!a.deviceName - !b.deviceName) || a.name.localeCompare(b.name) || a.address.localeCompare(b.address))
             }
 
             delegate: Item {
