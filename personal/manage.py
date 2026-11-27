@@ -166,7 +166,7 @@ def dependency_state(database=Path('/var/lib/pacman/local')):
             providers.setdefault(re.split(r'[<>=]', provide)[0], name)
     roots = ['gcc', 'gcc-libs', 'binutils', 'cmake', 'ninja', 'pkgconf',
              'qt6-base', 'qt6-declarative', 'qt6-shadertools', 'qt6-m3shapes-git',
-             'libqalculate', 'libpipewire', 'aubio', 'cava', 'libcava', 'quickshell-git']
+             'libqalculate', 'libpipewire', 'aubio', 'fftw', 'quickshell-git']
     state, pending = {}, roots[:]
     while pending:
         requirement = re.split(r'[<>=]', pending.pop())[0]

@@ -26,7 +26,7 @@ qml_module(caelestia-services
         Qt::Network
         PkgConfig::Pipewire
         PkgConfig::Aubio
-        PkgConfig::Cava
+        cavacore
         Sensors::Sensors
         caelestia-util
         caelestia-core
